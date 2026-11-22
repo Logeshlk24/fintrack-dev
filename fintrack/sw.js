@@ -1,7 +1,8 @@
 // FinTrack Service Worker
 // Enables PWA install prompt and basic offline shell caching
 
-const CACHE_NAME = "fintrack-v1";
+// Bump this whenever caching behaviour changes: old caches are deleted on activate.
+const CACHE_NAME = "fintrack-v2";
 const SHELL = ["/", "/index.html"];
 
 self.addEventListener("install", (e) => {
@@ -20,16 +21,39 @@ self.addEventListener("activate", (e) => {
   self.clients.claim();
 });
 
-// Network-first: always try network, fall back to cache
+// Network-first for the app's own static files, with cache fallback when offline.
+// Deliberately NOT handled (left to the browser, never cached):
+//   • /api/*  — live prices, history, dividends: a cached copy would show stale
+//               numbers offline with no indication they are old
+//   • other origins — Google Drive / Firebase / fonts (private or token-bearing data)
+//   • non-GET requests
 self.addEventListener("fetch", (e) => {
-  if (e.request.method !== "GET") return;
+  const req = e.request;
+  if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  if (url.pathname.startsWith("/api/")) return;
+
   e.respondWith(
-    fetch(e.request)
+    fetch(req)
       .then((res) => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then((c) => c.put(e.request, clone));
+        // Only keep good, same-origin responses (never error pages or redirects)
+        if (res.ok && res.type === "basic") {
+          const clone = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, clone));
+        }
         return res;
       })
-      .catch(() => caches.match(e.request))
+      .catch(async () => {
+        const cached = await caches.match(req);
+        if (cached) return cached;
+        // Offline navigation → show the cached app shell
+        if (req.mode === "navigate") {
+          const shell = await caches.match("/index.html");
+          if (shell) return shell;
+        }
+        return Response.error();
+      })
   );
 });
