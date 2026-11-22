@@ -172,6 +172,12 @@ const ASSET_TYPES = ["Stocks & Equity", "Equity Funds", "Gold & Silver", "FD & R
 const STRATEGIES = ["Call", "Put"];
 const INSTRUMENTS = ["Index Options", "Stock Options", "Commodities"];
 
+// Text blocks are saved as plain text (innerText), so they must be rendered as plain
+// text too. Escaping keeps typed/restored "<...>" from ever being parsed as HTML.
+const escapeHtml = (v) => String(v ?? "")
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
 const fmt = (n) => new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 }).format(n || 0);
 const fmtCur = (n) => "₹" + fmt(n);
 const fmtPct = (n) => (n >= 0 ? "+" : "") + (n || 0).toFixed(2) + "%";
@@ -13700,7 +13706,7 @@ function MergedNoteEditor({ note, updateNote, deleteNote, onEsc, NOTE_COLORS, ma
                   padding: "1px 2px",
                   borderBottom: "1.5px dashed rgba(109,40,217,0.25)",
                 }}
-                dangerouslySetInnerHTML={{ __html: tb.text }}
+                dangerouslySetInnerHTML={{ __html: escapeHtml(tb.text) }}
               />
             </div>
           ))}
