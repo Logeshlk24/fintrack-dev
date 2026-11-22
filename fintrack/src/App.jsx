@@ -246,6 +246,9 @@ export default function App() {
   const [firebaseUser, setFirebaseUser] = useState(undefined);
   const [data, setData]                 = useState({ ...defaultData });
   const [dataReady, setDataReady]       = useState(false);
+  const [loadError, setLoadError]       = useState(null);   // data could not be loaded
+  const [saveError, setSaveError]       = useState(false);  // last save failed (auto-retrying)
+  const [retryTick, setRetryTick]       = useState(0);      // bumps to retry a failed save
 
   const [page, setPage]                 = useState("overview");
   const [onboarding, setOnboarding]     = useState(false);
@@ -279,8 +282,17 @@ export default function App() {
     (async () => {
       // Check for any existing localStorage data to migrate
       const migrated = migrateLocalStorage();
-      const loaded   = await loadFromFirestore(firebaseUser.uid, migrated || defaultData);
+      let loaded;
+      try {
+        loaded = await loadFromFirestore(firebaseUser.uid, migrated || defaultData);
+      } catch (e) {
+        // Do NOT fall back to empty data: the next autosave would overwrite the real data.
+        console.error("Firestore load failed:", e);
+        if (!cancelled) setLoadError(e?.message || "Could not load your data");
+        return;
+      }
       if (cancelled) return;
+      setLoadError(null);
 
       setData({
         ...loaded,
@@ -377,13 +389,18 @@ export default function App() {
   // Debounced Firestore write (800 ms after the last change)
   useEffect(() => {
     if (!firebaseUser || !dataReady || !dirtyRef.current) return;
-    saveTimer.current = setTimeout(() => {
-      dirtyRef.current = false;
-      saveToFirestore(firebaseUser.uid, data);
+    saveTimer.current = setTimeout(async () => {
       saveTimer.current = null;
+      dirtyRef.current = false;
+      const ok = await saveToFirestore(firebaseUser.uid, data);
+      if (ok) { setSaveError(false); return; }
+      // Keep the data marked unsaved, tell the user, and retry in 5 s
+      dirtyRef.current = true;
+      setSaveError(true);
+      setTimeout(() => setRetryTick(t => t + 1), 5000);
     }, 800);
     return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
-  }, [data, firebaseUser, dataReady]);
+  }, [data, firebaseUser, dataReady, retryTick]);
 
   // Flush a pending save when the tab is hidden/closed so the last edits aren't lost
   useEffect(() => {
@@ -392,7 +409,7 @@ export default function App() {
       if (!dirtyRef.current || !dataReady) return;
       if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
       dirtyRef.current = false;
-      saveToFirestore(firebaseUser.uid, dataRef.current);
+      saveToFirestore(firebaseUser.uid, dataRef.current).then(ok => { if (!ok) dirtyRef.current = true; });
     };
     const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
     document.addEventListener("visibilitychange", onVisibility);
@@ -749,6 +766,9 @@ export default function App() {
   // ── Auth gates ────────────────────────────────────────────────────────────
   if (firebaseUser === undefined) return <SplashScreen msg="Loading…" />;
   if (firebaseUser === null)      return <SignInPage />;
+  if (loadError) return (
+    <SplashScreen msg={`Could not load your data (${loadError}). Nothing was changed. Check your connection and reload.`} />
+  );
   if (!dataReady)                 return <SplashScreen msg="Syncing your data…" />;
 
   if (onboarding) return <Onboarding step={onboardStep} setStep={setOnboardStep} data={data} update={update} done={() => setOnboarding(false)} />;
@@ -792,6 +812,12 @@ export default function App() {
     <div style={{ display: "flex", minHeight: "100vh", fontFamily: "'DM Sans', sans-serif", background: "var(--color-background-tertiary)", color: "var(--color-text-primary)" }}>
       <style>{LIGHT_MODE_STYLE}</style>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet" />
+
+      {saveError && (
+        <div role="alert" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999, background: "#b91c1c", color: "#fff", padding: "8px 14px", fontSize: 13, textAlign: "center" }}>
+          Your latest changes could not be saved. Retrying… keep this tab open.
+        </div>
+      )}
 
       {/* Sidebar — hidden on mobile */}
       <aside style={{
