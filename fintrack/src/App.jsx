@@ -337,19 +337,17 @@ export default function App() {
               }
             }
             if (folderId && !cancelled) {
-              setData(prev => {
-                const next = {
-                  ...prev,
-                  gdriveIntegration: {
-                    connected: true,
-                    email: firebaseUser.email || "",
-                    folderId,
-                    connectedAt: new Date().toISOString(),
-                  },
-                };
-                saveToFirestore(firebaseUser.uid, next);
-                return next;
-              });
+              // Pure updater; the save effect persists it (dirtyRef marks it unsaved)
+              dirtyRef.current = true;
+              setData(prev => ({
+                ...prev,
+                gdriveIntegration: {
+                  connected: true,
+                  email: firebaseUser.email || "",
+                  folderId,
+                  connectedAt: new Date().toISOString(),
+                },
+              }));
               console.log("✅ Google Drive auto-connected successfully!");
             }
           } else {
@@ -367,17 +365,43 @@ export default function App() {
   }, [firebaseUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 3. update() — same API as before, but writes to Firestore ─────────────
+  // The updater passed to setData must stay pure (React may run it twice), so
+  // update() only computes the next state and flags it as unsaved. The actual
+  // Firestore write happens in the effect below, driven by the committed state.
+  const dirtyRef = useRef(false);
   const update = useCallback((fn) => {
-    setData(prev => {
-      const next = { ...prev, ...fn(prev) };
-      // Debounced Firestore write (800 ms after last change)
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        if (firebaseUser) saveToFirestore(firebaseUser.uid, next);
-      }, 800);
-      return next;
-    });
-  }, [firebaseUser]);
+    dirtyRef.current = true;
+    setData(prev => ({ ...prev, ...fn(prev) }));
+  }, []);
+
+  // Debounced Firestore write (800 ms after the last change)
+  useEffect(() => {
+    if (!firebaseUser || !dataReady || !dirtyRef.current) return;
+    saveTimer.current = setTimeout(() => {
+      dirtyRef.current = false;
+      saveToFirestore(firebaseUser.uid, data);
+      saveTimer.current = null;
+    }, 800);
+    return () => { if (saveTimer.current) clearTimeout(saveTimer.current); };
+  }, [data, firebaseUser, dataReady]);
+
+  // Flush a pending save when the tab is hidden/closed so the last edits aren't lost
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const flush = () => {
+      if (!dirtyRef.current || !dataReady) return;
+      if (saveTimer.current) { clearTimeout(saveTimer.current); saveTimer.current = null; }
+      dirtyRef.current = false;
+      saveToFirestore(firebaseUser.uid, dataRef.current);
+    };
+    const onVisibility = () => { if (document.visibilityState === "hidden") flush(); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [firebaseUser, dataReady]);
 
   // ── Auto Bus Fare: runs on load (catch-up) + every minute (real-time) ────────
   const autoAddBusFare = useCallback((currentData) => {
