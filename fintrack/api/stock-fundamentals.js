@@ -5,6 +5,8 @@
 // Yahoo Finance v10/quoteSummary requires a crumb + cookie since 2023.
 // This file handles that auth flow with module-level caching.
 
+import { guard, parseTickers } from "./_guard.js";
+
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
 // ── Crumb cache (survives warm Vercel instances) ──────────────────────────────
@@ -146,15 +148,10 @@ async function fetchFundamentals(ticker) {
 
 // ── Handler ──────────────────────────────────────────────────────────────────
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (!guard(req, res)) return;
 
-  const { ticker } = req.query;
-  if (!ticker) return res.status(400).json({ error: "Missing ticker" });
-
-  const tickers = ticker.split(",").map(t => t.trim().toUpperCase()).filter(Boolean);
-  if (!tickers.length) return res.status(400).json({ error: "No valid tickers" });
+  const tickers = parseTickers(req.query.ticker, res);
+  if (!tickers) return;
 
   // Small stagger to avoid rate-limiting on large portfolios
   const output = {};

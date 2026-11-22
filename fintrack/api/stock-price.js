@@ -2,16 +2,13 @@
 // !! ORIGINAL FILE — RESTORED EXACTLY AS IT WAS WORKING !!
 // Only fetches live prices. Do NOT add fundamentals here.
 
+import { guard, parseTickers } from "./_guard.js";
+
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
-  if (req.method === "OPTIONS") return res.status(200).end();
+  if (!guard(req, res)) return;
 
-  const { ticker } = req.query;
-  if (!ticker) return res.status(400).json({ error: "Missing ticker param" });
-
-  const tickers = ticker.split(",").map(t => t.trim().toUpperCase()).filter(Boolean);
-  if (tickers.length === 0) return res.status(400).json({ error: "No valid tickers" });
+  const tickers = parseTickers(req.query.ticker, res);
+  if (!tickers) return;
 
   const results = await Promise.all(tickers.map(t => fetchOne(t)));
 

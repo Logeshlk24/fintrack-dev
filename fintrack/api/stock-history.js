@@ -2,13 +2,15 @@
 // Fetches monthly historical OHLC data from Yahoo Finance
 // Usage: /api/stock-history?ticker=%5ENSEI&range=10y&interval=1mo
 
-export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin",  "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-  if (req.method === "OPTIONS") return res.status(200).end();
+import { guard, isValidTicker } from "./_guard.js";
 
-  const { ticker, range = "10y", interval = "1mo" } = req.query;
+export default async function handler(req, res) {
+  if (!guard(req, res)) return;
+
+  const { range = "10y", interval = "1mo" } = req.query;
+  const ticker = Array.isArray(req.query.ticker) ? req.query.ticker[0] : req.query.ticker;
   if (!ticker) return res.status(400).json({ error: "ticker required" });
+  if (!isValidTicker(ticker)) return res.status(400).json({ error: "Invalid ticker" });
 
   const VALID_RANGES    = ["1d","5d","1mo","3mo","6mo","1y","2y","3y","5y","10y","ytd","max"];
   const VALID_INTERVALS = ["1m","2m","5m","15m","30m","60m","90m","1h","1d","5d","1wk","1mo","3mo"];
