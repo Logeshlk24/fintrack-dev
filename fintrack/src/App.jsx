@@ -344,7 +344,6 @@ export default function App() {
           
           const token = await getFreshDriveToken();
           if (token) {
-            console.log("✅ Drive token found - auto-connecting Google Drive...");
             // Find or create FinTracker folder
             const FOLDER_NAME = "FinTracker";
             const searchRes = await fetch(
@@ -356,7 +355,6 @@ export default function App() {
               const searchData = await searchRes.json();
               if (searchData.files?.length > 0) {
                 folderId = searchData.files[0].id;
-                console.log("✅ Found existing FinTracker folder");
               } else {
                 // Create folder
                 const createRes = await fetch(
@@ -370,7 +368,6 @@ export default function App() {
                 if (createRes.ok) {
                   const created = await createRes.json();
                   folderId = created.id;
-                  console.log("✅ Created new FinTracker folder");
                 }
               }
             }
@@ -386,17 +383,16 @@ export default function App() {
                   connectedAt: new Date().toISOString(),
                 },
               }));
-              console.log("✅ Google Drive auto-connected successfully!");
             }
           } else {
-            console.log("ℹ️ No Drive token available yet - Drive integration will be available in Settings");
+            // (nothing to do)
           }
         } catch (e) {
           // Silent fail — user can manually connect from Settings → Integrations
           console.warn("Drive auto-connect:", e);
         }
       } else {
-        console.log("✅ Google Drive already connected - email:", loaded?.gdriveIntegration?.email);
+        // (nothing to do)
       }
     })();
     return () => { cancelled = true; };
@@ -706,14 +702,12 @@ export default function App() {
     if (!firebaseUser) return;
     if (!data.gdriveIntegration?.connected) return;
 
-    console.log("🔄 Drive token auto-refresh enabled (runs every 50 minutes)");
 
     // Function to refresh Drive token silently
     const refreshDriveToken = async () => {
       try {
         const token = await getFreshDriveToken();
         if (token) {
-          console.log("✅ Drive token refreshed silently");
         } else {
           console.warn("⚠️ Drive token refresh failed - might need re-authentication");
         }
@@ -951,7 +945,7 @@ export default function App() {
         )}
         {sidebarCollapsed && (
           <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, padding: "0.5rem 0" }}>
-            <button onClick={() => setPage("settings")} title="Settings" style={{
+            <button aria-label="Settings" onClick={() => setPage("settings")} title="Settings" style={{
               background: page === "settings" ? "var(--color-background-secondary)" : "none",
               border: "none", cursor: "pointer", fontSize: 18,
               width: "100%", padding: "0.5rem 0", display: "flex", justifyContent: "center",
@@ -1866,12 +1860,12 @@ function Overview({ data, netWorth, foNetPnl, setPage, toggles, update, portfoli
               style={{ flex: 1, fontSize: 13, padding: "6px 10px", borderRadius: 8, border: "0.5px solid var(--color-border-secondary)", outline: "none", fontFamily: "inherit", background: "var(--color-background-secondary)", color: "var(--color-text-primary)" }}
             />
             {/* Repeat toggle button */}
-            <button onClick={() => setShowRepeat(p => !p)}
+            <button aria-label="Set repeat" onClick={() => setShowRepeat(p => !p)}
               title="Set repeat"
               style={{ background: repeatMode !== "none" ? "#e8f5ee" : "var(--color-background-secondary)", color: repeatMode !== "none" ? "#1a6b3c" : "var(--color-text-secondary)", border: `0.5px solid ${repeatMode !== "none" ? "#1a6b3c" : "var(--color-border-secondary)"}`, borderRadius: 8, padding: "6px 10px", cursor: "pointer", fontSize: 13, whiteSpace: "nowrap" }}>
               🔁
             </button>
-            <button onClick={addTodo}
+            <button aria-label="Add" onClick={addTodo}
               style={{ background: "#1a6b3c", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, whiteSpace: "nowrap" }}>
               +
             </button>
@@ -1925,14 +1919,14 @@ function Overview({ data, netWorth, foNetPnl, setPage, toggles, update, portfoli
                         : t.repeat}
                     </span>
                   )}
-                  <button onClick={() => deleteTodo(t.id)}
+                  <button aria-label="Remove" onClick={() => deleteTodo(t.id)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 13, opacity: 0.45, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>✕</button>
                 </div>
               ))}
               {/* Completed */}
               {todos.filter(t => t.done).map(t => (
                 <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 8px", borderRadius: 8, background: "transparent", border: "0.5px solid var(--color-border-tertiary)", opacity: 0.55 }}>
-                  <button onClick={() => toggleTodo(t.id)}
+                  <button aria-label="Done" onClick={() => toggleTodo(t.id)}
                     style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid #1a6b3c", background: "#e8f5ee", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#1a6b3c", fontSize: 11 }}>✓</button>
                   <span style={{ flex: 1, fontSize: 13, color: "var(--color-text-secondary)", textDecoration: "line-through", wordBreak: "break-word" }}>{t.text}</span>
                   {t.repeat && t.repeat !== "none" && (
@@ -1940,7 +1934,7 @@ function Overview({ data, netWorth, foNetPnl, setPage, toggles, update, portfoli
                       🔁 {t.repeat}
                     </span>
                   )}
-                  <button onClick={() => deleteTodo(t.id)}
+                  <button aria-label="Remove" onClick={() => deleteTodo(t.id)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 13, opacity: 0.45, padding: "0 2px", lineHeight: 1, flexShrink: 0 }}>✕</button>
                 </div>
               ))}
@@ -2296,8 +2290,8 @@ function BudgetTab({ data, update, categories }) {
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => setEditBudget(budget)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, padding: "2px 6px", opacity: 0.7 }} title="Edit">✏️</button>
-                    <button onClick={() => deleteBudget(budget.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "2px 6px", color: "#dc2626", opacity: 0.7 }} title="Delete">🗑️</button>
+                    <button aria-label="Edit" onClick={() => setEditBudget(budget)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, padding: "2px 6px", opacity: 0.7 }} title="Edit">✏️</button>
+                    <button aria-label="Delete" onClick={() => deleteBudget(budget.id)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, padding: "2px 6px", color: "#dc2626", opacity: 0.7 }} title="Delete">🗑️</button>
                   </div>
                 </div>
                 {/* Progress Bar */}
@@ -2896,14 +2890,14 @@ function TransferHistoryRow({ t, idx, total, fromAcct, toAcct, accounts, badgeSt
         <div style={{ fontWeight: 700, fontSize: 15, color: GREEN }}>₹{Number(t.amount).toLocaleString("en-IN")}</div>
       </div>
       {/* Edit */}
-      <button onClick={openEdit}
+      <button aria-label="Edit transfer" onClick={openEdit}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "var(--color-border-primary)", padding: "4px", borderRadius: 6, flexShrink: 0, opacity: 0.45 }}
         title="Edit transfer"
         onMouseEnter={e => { e.currentTarget.style.opacity = "1"; }}
         onMouseLeave={e => { e.currentTarget.style.opacity = "0.45"; }}
       >✏️</button>
       {/* Delete */}
-      <button onClick={onDelete}
+      <button aria-label="Delete transfer" onClick={onDelete}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "var(--color-border-primary)", padding: "4px", borderRadius: 6, flexShrink: 0, opacity: 0.4 }}
         title="Delete transfer"
         onMouseEnter={e => { e.currentTarget.style.color = "#cc2222"; e.currentTarget.style.opacity = "1"; }}
@@ -3065,7 +3059,7 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
           <span style={{ fontSize: 15, color: "var(--color-text-secondary)" }}>🔍</span>
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search transactions"
             style={{ flex: 1, background: "none !important", border: "none !important", outline: "none", fontSize: 14, color: "var(--color-text-primary)", padding: "0 !important" }} />
-          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", padding: 0 }}>✕</button>}
+          {search && <button aria-label="Clear filter" onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", padding: 0 }}>✕</button>}
         </div>
 
         {/* Filter button with badge */}
@@ -3084,7 +3078,7 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
 
         {/* Sort button */}
         <div style={{ position: "relative", flexShrink: 0 }}>
-          <button onClick={() => { setShowSort(p => !p); setShowFilter(false); }} style={{
+          <button aria-label="Change order" onClick={() => { setShowSort(p => !p); setShowFilter(false); }} style={{
             width: 42, height: 42, borderRadius: "50%", background: BG2,
             border: `0.5px solid var(--color-border-secondary)`,
             cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)",
@@ -3111,19 +3105,19 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
           {filterYearMonth !== "all" && filterDateMode === "ym" && (
             <span style={{ ...chipStyle(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap: 4 }}>
               📅 {filterYearMonth.length === 4 ? filterYearMonth : fmtYM(filterYearMonth)}
-              <button onClick={() => setFilterYearMonth("all")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
+              <button aria-label="Clear filter" onClick={() => setFilterYearMonth("all")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
             </span>
           )}
           {filterCatType !== "All" && (
             <span style={{ ...chipStyle(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap: 4 }}>
               {filterCatType}
-              <button onClick={() => setFilterCatType("All")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
+              <button aria-label="Clear filter" onClick={() => setFilterCatType("All")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
             </span>
           )}
           {filterCats.map(c => (
             <span key={c} style={{ ...chipStyle(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap: 4 }}>
               {c}
-              <button onClick={() => toggleCat(c)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
+              <button aria-label="Close" onClick={() => toggleCat(c)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
             </span>
           ))}
           {filterAccounts.map(id => {
@@ -3131,7 +3125,7 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
             return a ? (
               <span key={id} style={{ ...chipStyle(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap: 4 }}>
                 {a.name}
-                <button onClick={() => toggleAcct(id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
+                <button aria-label="Close" onClick={() => toggleAcct(id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:11, padding:0 }}>✕</button>
               </span>
             ) : null;
           })}
@@ -3194,7 +3188,7 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
                           </div>
                           {t.time && <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>{t.time}</div>}
                         </div>
-                        <button onClick={e => { e.stopPropagation(); update(p => ({ transactions: p.transactions.filter(x => x.id !== t.id) })); }}
+                        <button aria-label="Delete" onClick={e => { e.stopPropagation(); update(p => ({ transactions: p.transactions.filter(x => x.id !== t.id) })); }}
                           style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "var(--color-border-primary)", padding: "4px", borderRadius: 6, flexShrink: 0, opacity: 0.4 }}
                           title="Delete"
                           onMouseEnter={e => { e.currentTarget.style.color = "#cc2222"; e.currentTarget.style.opacity = "1"; }}
@@ -3303,7 +3297,7 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
                 <button onClick={resetFilters} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20, border: `0.5px solid var(--color-border-secondary)`, background: BG2, cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 500 }}>
                   ↺ Reset
                 </button>
-                <button onClick={() => setShowFilter(false)} style={{ width: 32, height: 32, borderRadius: "50%", border: `0.5px solid var(--color-border-secondary)`, background: BG2, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>✕</button>
+                <button aria-label="Remove" onClick={() => setShowFilter(false)} style={{ width: 32, height: 32, borderRadius: "50%", border: `0.5px solid var(--color-border-secondary)`, background: BG2, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>✕</button>
               </div>
             </div>
 
@@ -3610,7 +3604,7 @@ function RecentTransactionsTab({ data, update, accounts, setEditTx }) {
             placeholder="Search transactions"
             style={{ flex: 1, background: "none !important", border: "none !important", outline: "none", fontSize: 14, color: "var(--color-text-primary)", padding: "0 !important" }}
           />
-          {search && <button onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", padding: 0 }}>✕</button>}
+          {search && <button aria-label="Clear filter" onClick={() => setSearch("")} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", padding: 0 }}>✕</button>}
         </div>
         {/* Filter icon button */}
         <button onClick={() => { setShowFilter(p => !p); setShowSort(false); }} style={{
@@ -3626,7 +3620,7 @@ function RecentTransactionsTab({ data, update, accounts, setEditTx }) {
         </button>
         {/* Sort icon */}
         <div style={{ position: "relative", flexShrink: 0 }}>
-          <button onClick={() => { setShowSort(p => !p); setShowFilter(false); }} style={{
+          <button aria-label="Change order" onClick={() => { setShowSort(p => !p); setShowFilter(false); }} style={{
             width: 44, height: 44, borderRadius: "50%", background: BG2, border: `0.5px solid ${BORDER}`,
             cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)",
           }}>↕</button>
@@ -3652,19 +3646,19 @@ function RecentTransactionsTab({ data, update, accounts, setEditTx }) {
           {filterYearMonth !== "all" && filterDateMode === "ym" && (
             <span style={{ ...chip(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap:4 }}>
               📅 {filterYearMonth.length === 4 ? filterYearMonth : fmtYM(filterYearMonth)}
-              <button onClick={() => setFilterYearMonth("all")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
+              <button aria-label="Clear filter" onClick={() => setFilterYearMonth("all")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
             </span>
           )}
           {filterCatType !== "All" && (
             <span style={{ ...chip(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap:4 }}>
               {filterCatType}
-              <button onClick={() => setFilterCatType("All")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
+              <button aria-label="Clear filter" onClick={() => setFilterCatType("All")} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
             </span>
           )}
           {filterCats.map(c => (
             <span key={c} style={{ ...chip(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap:4 }}>
               {c}
-              <button onClick={() => toggleCat(c)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
+              <button aria-label="Close" onClick={() => toggleCat(c)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
             </span>
           ))}
           {filterAccounts.map(id => {
@@ -3672,7 +3666,7 @@ function RecentTransactionsTab({ data, update, accounts, setEditTx }) {
             return a ? (
               <span key={id} style={{ ...chip(true), fontSize: 11, padding: "3px 10px", display:"flex", alignItems:"center", gap:4 }}>
                 {a.name}
-                <button onClick={() => toggleAccount(id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
+                <button aria-label="Close" onClick={() => toggleAccount(id)} style={{ background:"none", border:"none", cursor:"pointer", color:"#fff", fontSize:12, padding:0, lineHeight:1 }}>✕</button>
               </span>
             ) : null;
           })}
@@ -3736,7 +3730,7 @@ function RecentTransactionsTab({ data, update, accounts, setEditTx }) {
                         </div>
                         {t.time && <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>{t.time}</div>}
                       </div>
-                      <button onClick={e => { e.stopPropagation(); update(p => ({ transactions: p.transactions.filter(x => x.id !== t.id) })); }}
+                      <button aria-label="Delete" onClick={e => { e.stopPropagation(); update(p => ({ transactions: p.transactions.filter(x => x.id !== t.id) })); }}
                         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 15, color: "var(--color-border-primary)", padding: "4px", borderRadius: 6, flexShrink: 0, opacity: 0.4 }}
                         title="Delete"
                         onMouseEnter={e => { e.currentTarget.style.color = "#cc2222"; e.currentTarget.style.opacity = "1"; }}
@@ -3779,7 +3773,7 @@ function RecentTransactionsTab({ data, update, accounts, setEditTx }) {
                 <button onClick={resetFilters} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", borderRadius: 20, border: `0.5px solid ${BORDER}`, background: BG2, cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)", fontWeight: 500 }}>
                   ↺ Reset
                 </button>
-                <button onClick={() => setShowFilter(false)} style={{ width: 32, height: 32, borderRadius: "50%", border: `0.5px solid ${BORDER}`, background: BG2, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>✕</button>
+                <button aria-label="Remove" onClick={() => setShowFilter(false)} style={{ width: 32, height: 32, borderRadius: "50%", border: `0.5px solid ${BORDER}`, background: BG2, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-secondary)" }}>✕</button>
               </div>
             </div>
 
@@ -4326,7 +4320,7 @@ function FOPage({ data, update, tab, setTab, calcCharges, foNetPnl }) {
                       <span style={{ fontWeight: 600, fontSize: 14 }}>{b.name}</span>
                       <div style={{ display: "flex", gap: 6 }}>
                         <button onClick={() => editBroker(b)} style={{ background: "#e8f5ee", border: "none", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 12, color: "#1a6b3c", fontWeight: 500 }}>Edit</button>
-                        <button onClick={() => deleteBroker(b.id)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14 }}>✕</button>
+                        <button aria-label="Remove" onClick={() => deleteBroker(b.id)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14 }}>✕</button>
                       </div>
                     </div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 4, fontSize: 11, color: "var(--color-text-secondary)" }}>
@@ -4421,12 +4415,12 @@ function FOCalendarPnl({ trades, calcCharges, foCharges }) {
         <div style={{ background: "var(--color-background-primary)", borderRadius: 14, border: "0.5px solid var(--color-border-tertiary)", overflow: "hidden" }}>
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "1rem 1.2rem", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
-            <button onClick={prevMonth} style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 16, color: "var(--color-text-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
+            <button aria-label="Previous" onClick={prevMonth} style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 16, color: "var(--color-text-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>‹</button>
             <div style={{ textAlign: "center" }}>
               <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 20, fontWeight: 400 }}>{monthName}</div>
               <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>{monthTrades.length} TRADE{monthTrades.length !== 1 ? "S" : ""}</div>
             </div>
-            <button onClick={nextMonth} style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 16, color: "var(--color-text-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
+            <button aria-label="Next" onClick={nextMonth} style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 16, color: "var(--color-text-primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>›</button>
           </div>
 
           {/* Day labels */}
@@ -4499,7 +4493,7 @@ function FOCalendarPnl({ trades, calcCharges, foCharges }) {
                 </div>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>{selectedData ? selectedData.trades.length + " trade(s)" : "No trades"}</div>
               </div>
-              <button onClick={() => setSelectedDay(null)} style={{ background: "none", border: "none", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 18 }}>✕</button>
+              <button aria-label="Close" onClick={() => setSelectedDay(null)} style={{ background: "none", border: "none", color: "var(--color-text-secondary)", cursor: "pointer", fontSize: 18 }}>✕</button>
             </div>
 
             {!selectedData ? (
@@ -4834,7 +4828,6 @@ function IntegrationsSettings({ data, update, cardStyle, sectionTitle, firebaseU
     const jsonStr  = JSON.stringify(payload, null, 2);
     const FILE_NAME = "fintrack_backup.json";
 
-    console.log("🔄 Starting backup...");
 
     // ── Step 1: Search for existing backup file ────────────
     const searchRes = await fetch(
@@ -4848,14 +4841,12 @@ function IntegrationsSettings({ data, update, cardStyle, sectionTitle, firebaseU
     const searchData = await searchRes.json();
     const existingFileId = searchData.files?.[0]?.id || null;
 
-    console.log(`📁 Existing backup: ${existingFileId ? 'Found (will overwrite)' : 'Not found (will create new)'}`);
 
     // ── Step 2: Upload (create new or update existing) ────────────
     let uploadRes;
     
     if (existingFileId) {
       // Update existing file
-      console.log("📝 Overwriting existing backup...");
       const boundary = "fintrack_boundary_xyz";
       const body = [
         `--${boundary}`,
@@ -4879,7 +4870,6 @@ function IntegrationsSettings({ data, update, cardStyle, sectionTitle, firebaseU
       );
     } else {
       // Create new file
-      console.log("📤 Creating new backup file...");
       const boundary = "fintrack_boundary_xyz";
       const body = [
         `--${boundary}`,
@@ -4910,7 +4900,6 @@ function IntegrationsSettings({ data, update, cardStyle, sectionTitle, firebaseU
       throw new Error(err?.error?.message || `Upload failed (${uploadRes.status})`);
     }
     
-    console.log("✅ Backup saved successfully");
     
     if (!silent) flashMsg("success", `✅ Backup saved → FinTracker/Backup/${FILE_NAME}`);
     return true;
@@ -5193,7 +5182,7 @@ function IntegrationsSettings({ data, update, cardStyle, sectionTitle, firebaseU
               <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: 10, overflow: "hidden" }}>
                 <div style={{ background: "var(--color-background-secondary)", padding: "10px 14px", fontSize: 13, fontWeight: 600, borderBottom: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>📁 FinTracker / Backup</span>
-                  <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, lineHeight: 1 }}>✕</button>
+                  <button aria-label="Close" onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, lineHeight: 1 }}>✕</button>
                 </div>
                 {loadingFiles ? (
                   <div style={{ padding: "16px 14px", fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>Loading…</div>
@@ -5836,7 +5825,7 @@ function BackupSettings({ data, update, cardStyle, sectionTitle, firebaseUser })
               <div style={{ border: "0.5px solid var(--color-border-tertiary)", borderRadius: 10, overflow: "hidden" }}>
                 <div style={{ background: "var(--color-background-secondary)", padding: "10px 14px", fontSize: 13, fontWeight: 600, borderBottom: "0.5px solid var(--color-border-tertiary)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>📁 FinTracker / Backup</span>
-                  <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, lineHeight: 1 }}>✕</button>
+                  <button aria-label="Close" onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, lineHeight: 1 }}>✕</button>
                 </div>
                 {loadingFiles ? (
                   <div style={{ padding: "16px 14px", fontSize: 13, color: "var(--color-text-secondary)", textAlign: "center" }}>Loading…</div>
@@ -6057,7 +6046,7 @@ function ProjectSettings({ data, update, cardStyle, sectionTitle }) {
           {taskTypes.map(t => (
             <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, background: "#e8f5ee", border: "0.5px solid #1a6b3c33", borderRadius: 8, padding: "5px 10px 5px 12px", fontSize: 13 }}>
               <span style={{ fontWeight: 500, color: "#1a6b3c" }}>{t}</span>
-              <button onClick={() => deleteType(t)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: 2, opacity: 0.7 }} title="Remove">✕</button>
+              <button aria-label="Remove" onClick={() => deleteType(t)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: 2, opacity: 0.7 }} title="Remove">✕</button>
             </div>
           ))}
         </div>
@@ -6191,7 +6180,7 @@ function TradingSettings({ data, update, cardStyle, sectionTitle }) {
                   <div key={name} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 8, padding: "5px 10px", fontSize: 13 }}>
                     <span style={{ fontWeight: 500 }}>{name}</span>
                     {lotSizes[name] && <span style={{ fontSize: 11, color: "#1a6b3c", fontWeight: 600 }}>· {lotSizes[name]}/lot</span>}
-                    <button onClick={() => handleRemoveInstrument(cat, name)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: 2 }}>✕</button>
+                    <button aria-label="Remove" onClick={() => handleRemoveInstrument(cat, name)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: 2 }}>✕</button>
                   </div>
                 ))}
               </div>
@@ -6547,7 +6536,7 @@ function LiabilityTypesSettings({ data, update, cardStyle, sectionTitle }) {
         {types.map(t => (
           <div key={t} style={{ display: "flex", alignItems: "center", gap: 6, background: "#fff3e0", border: "0.5px solid #e6520033", borderRadius: 8, padding: "5px 10px 5px 12px", fontSize: 13 }}>
             <span style={{ fontWeight: 500, color: "#b45309" }}>{t}</span>
-            <button onClick={() => deleteType(t)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: 2, opacity: 0.7 }} title="Remove">✕</button>
+            <button aria-label="Remove" onClick={() => deleteType(t)} style={{ background: "none", border: "none", color: "#d44", cursor: "pointer", fontSize: 14, lineHeight: 1, padding: "0 2px", marginLeft: 2, opacity: 0.7 }} title="Remove">✕</button>
           </div>
         ))}
       </div>
@@ -7161,9 +7150,9 @@ function AnalysisTab({ data, update, accounts }) {
           {/* Calendar grid */}
           <div style={{flex:"1 1 auto",minWidth:0,maxWidth:"100%"}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-              <button onClick={prev} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"var(--color-text-secondary)",padding:"0 8px"}}>‹</button>
+              <button aria-label="Previous" onClick={prev} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"var(--color-text-secondary)",padding:"0 8px"}}>‹</button>
               <span style={{fontWeight:700,fontSize:15}}>{MONTHS[calMonth]} {calYear}</span>
-              <button onClick={next} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"var(--color-text-secondary)",padding:"0 8px"}}>›</button>
+              <button aria-label="Next" onClick={next} style={{background:"none",border:"none",cursor:"pointer",fontSize:20,color:"var(--color-text-secondary)",padding:"0 8px"}}>›</button>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:4}}>
               {DAYS.map(d=><div key={d} style={{textAlign:"center",fontSize:10,color:"var(--color-text-secondary)",fontWeight:600,padding:"4px 0"}}>{d}</div>)}
@@ -7762,8 +7751,8 @@ function ScheduledPaymentsTab({ data, update, accounts, processScheduledPayments
                     </div>
                     <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                       <button onClick={() => togglePaid(p.id)} title={isPaid ? "Undo — removes auto-logged transaction" : "Mark Paid manually"} style={{ width: 28, height: 28, borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 13, color: isPaid ? "#1a6b3c" : "var(--color-text-secondary)", display: "flex", alignItems: "center", justifyContent: "center" }}>{isPaid ? "↩" : "✓"}</button>
-                      <button onClick={() => startEdit(p)} title="Edit payment" style={{ width: 28, height: 28, borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 13, color: "#4da6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>✏️</button>
-                      <button onClick={() => deletePayment(p.id)} title="Delete" style={{ width: 28, height: 28, borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 13, color: "#d44", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                      <button aria-label="Edit payment" onClick={() => startEdit(p)} title="Edit payment" style={{ width: 28, height: 28, borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 13, color: "#4da6ff", display: "flex", alignItems: "center", justifyContent: "center" }}>✏️</button>
+                      <button aria-label="Delete" onClick={() => deletePayment(p.id)} title="Delete" style={{ width: 28, height: 28, borderRadius: 6, border: "0.5px solid var(--color-border-secondary)", background: "transparent", cursor: "pointer", fontSize: 13, color: "#d44", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                     </div>
                   </div>
                 );
@@ -8884,7 +8873,7 @@ function AddSavingsInline({ item, cardAccent, accounts, goalAccounts, addSavings
       )}
       <div style={{ display: "flex", gap: 6 }}>
         <button onClick={handleAddSavings} style={{ flex: 1, background: cardAccent, color: "#fff", border: "none", borderRadius: 7, padding: "5px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Log Savings</button>
-        <button onClick={() => { setShowAddSave(false); setAddAmt(""); setSaveBankId(""); }} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>✕</button>
+        <button aria-label="Close" onClick={() => { setShowAddSave(false); setAddAmt(""); setSaveBankId(""); }} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 7, padding: "5px 10px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>✕</button>
       </div>
     </div>
   );
@@ -9237,7 +9226,7 @@ function GoalsPage({ data, update }) {
                 style={{ flex: 1, boxSizing: "border-box", fontSize: 12 }}
               />
               {(values.urls || [""]).length > 1 && (
-                <button type="button" onClick={() => {
+                <button aria-label="Remove" type="button" onClick={() => {
                   const updated = (values.urls || [""]).filter((_, j) => j !== i);
                   onChange({ ...values, urls: updated });
                 }} style={{ background: "none", border: "0.5px solid #d44", borderRadius: 6, padding: "4px 8px", cursor: "pointer", color: "#d44", fontSize: 12, flexShrink: 0 }}>✕</button>
@@ -9521,22 +9510,22 @@ function GoalsPage({ data, update }) {
                             <td style={{ padding: "9px 12px" }}>
                               {isEditing ? (
                                 <div style={{ display: "flex", gap: 4 }}>
-                                  <button onClick={() => saveTransactionEdit(item.id, t.amount)}
+                                  <button aria-label="Done" onClick={() => saveTransactionEdit(item.id, t.amount)}
                                     style={{ background: "#1a6b3c", color: "#fff", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 11, fontWeight: 500 }}>
                                     ✓
                                   </button>
-                                  <button onClick={() => { setEditingTx(null); setTxEditForm({ amount: "", date: "", bankId: "", type: "", note: "" }); }}
+                                  <button aria-label="Close" onClick={() => { setEditingTx(null); setTxEditForm({ amount: "", date: "", bankId: "", type: "", note: "" }); }}
                                     style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)" }}>
                                     ✕
                                   </button>
                                 </div>
                               ) : (
                                 <div style={{ display: "flex", gap: 4 }}>
-                                  <button onClick={() => startEditTransaction(t)} title="Edit"
+                                  <button aria-label="Edit" onClick={() => startEditTransaction(t)} title="Edit"
                                     style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)" }}>
                                     ✏️
                                   </button>
-                                  <button onClick={() => deleteTransaction(t.id, item.id, t.amount)} title="Delete"
+                                  <button aria-label="Delete" onClick={() => deleteTransaction(t.id, item.id, t.amount)} title="Delete"
                                     style={{ background: "none", border: "0.5px solid #fecaca", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 11, color: "#ef4444" }}>
                                     🗑️
                                   </button>
@@ -9671,7 +9660,7 @@ function GoalsPage({ data, update }) {
                 <div style={{ fontWeight: 600, fontSize: 16 }}>⚙️ Goal Accounts</div>
                 <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 2 }}>Separate accounts for goals excluded from Net Worth</div>
               </div>
-              <button onClick={() => { setShowGoalAccounts(false); setEditGoalAcc(null); setGoalAccForm({ name: "", balance: "" }); }}
+              <button aria-label="Close" onClick={() => { setShowGoalAccounts(false); setEditGoalAcc(null); setGoalAccForm({ name: "", balance: "" }); }}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--color-text-secondary)" }}>✕</button>
             </div>
 
@@ -9725,11 +9714,11 @@ function GoalsPage({ data, update }) {
                         <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 2 }}>Balance: {fmtCur(accBalance)}</div>
                       </div>
                       <div style={{ display: "flex", gap: 4 }}>
-                        <button onClick={() => { setEditGoalAcc(acc); setGoalAccForm({ name: acc.name, balance: String(acc.balance || 0) }); }}
+                        <button aria-label="Edit" onClick={() => { setEditGoalAcc(acc); setGoalAccForm({ name: acc.name, balance: String(acc.balance || 0) }); }}
                           style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 11, color: "var(--color-text-secondary)" }}>
                           ✏️
                         </button>
-                        <button onClick={() => deleteGoalAccount(acc.id)}
+                        <button aria-label="Delete" onClick={() => deleteGoalAccount(acc.id)}
                           style={{ background: "none", border: "0.5px solid #fecaca", borderRadius: 6, padding: "4px 8px", cursor: "pointer", fontSize: 11, color: "#ef4444" }}>
                           🗑️
                         </button>
@@ -10566,7 +10555,7 @@ function BusinessPage({ data, update }) {
                   {previewBill.uploadedAt && ` · Uploaded ${new Date(previewBill.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`}
                 </div>
               </div>
-              <button
+              <button aria-label="Close"
                 onClick={() => setPreviewBill(null)}
                 style={{ background: "none", border: "none", cursor: "pointer", fontSize: 24, color: "var(--color-text-secondary)", padding: "0 8px" }}
               >
@@ -10738,7 +10727,7 @@ function BusinessPage({ data, update }) {
                         onKeyDown={e => { if (e.key === "Enter") { renameBusiness(selectedBiz, renamingBiz.value); setRenamingBiz(null); } if (e.key === "Escape") setRenamingBiz(null); }}
                         onBlur={() => { renameBusiness(selectedBiz, renamingBiz.value); setRenamingBiz(null); }}
                         style={{ fontSize: 22, fontFamily: "'DM Serif Display', serif", border: "0.5px solid #1a6b3c", borderRadius: 7, padding: "2px 10px", outline: "none", background: "var(--color-background-secondary)", minWidth: 160 }} />
-                    : <><span>{activeBiz?.name}</span><button onClick={() => setRenamingBiz({ id: selectedBiz, value: activeBiz?.name || "" })} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "inherit" }} title="Rename">✏️</button></>
+                    : <><span>{activeBiz?.name}</span><button aria-label="Rename" onClick={() => setRenamingBiz({ id: selectedBiz, value: activeBiz?.name || "" })} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "inherit" }} title="Rename">✏️</button></>
                   )
                 : !selectedMonth
                   ? `${activeBiz?.name} · ${selectedYear}`
@@ -10754,7 +10743,7 @@ function BusinessPage({ data, update }) {
                               return <option key={m} value={m} disabled={usedByOther}>{m}{usedByOther ? " ✓ already added" : ""}</option>;
                             })}
                           </select>
-                          <button onClick={() => {
+                          <button aria-label="Done" onClick={() => {
                             const MONTHS_ALL = ["January","February","March","April","May","June","July","August","September","October","November","December"];
                             const newMIdx = MONTHS_ALL.indexOf(renamingDayMonthVal);
                             updateBizData(d => d.map(e => {
@@ -10777,7 +10766,7 @@ function BusinessPage({ data, update }) {
                             }));
                             setRenamingDayMonth(false);
                           }} style={{ background: "#1a6b3c", border: "none", borderRadius: 6, padding: "3px 12px", cursor: "pointer", fontSize: 13, color: "#fff", fontWeight: 600 }}>✓</button>
-                          <button onClick={() => setRenamingDayMonth(false)}
+                          <button aria-label="Close" onClick={() => setRenamingDayMonth(false)}
                             style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "3px 10px", cursor: "pointer", fontSize: 13, color: "var(--color-text-secondary)" }}>✕</button>
                         </>
                       ) : (
@@ -10889,9 +10878,9 @@ function BusinessPage({ data, update }) {
                         style={{ position: "absolute", top: 10, right: 60, background: "none", border: "none", cursor: "pointer", color: isForecast ? "#1a6b3c" : "#7c3aed", fontSize: 13, opacity: 0.7, padding: 2 }}>
                         {isForecast ? "🟢" : "🔮"}
                       </button>
-                      <button onClick={ev => { ev.stopPropagation(); deleteBusiness(biz.id); }}
+                      <button aria-label="Delete" onClick={ev => { ev.stopPropagation(); deleteBusiness(biz.id); }}
                         style={{ position: "absolute", top: 10, right: 34, background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 14, opacity: 0.5, padding: 2 }}>🗑</button>
-                      <button onClick={ev => { ev.stopPropagation(); setRenamingBiz({ id: biz.id, value: biz.name }); }}
+                      <button aria-label="Rename" onClick={ev => { ev.stopPropagation(); setRenamingBiz({ id: biz.id, value: biz.name }); }}
                         style={{ position: "absolute", top: 10, right: 8, background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 13, opacity: 0.6, padding: 2 }} title="Rename">✏️</button>
                       <div style={{ fontSize: 32, marginBottom: 6 }}>{isForecast ? "🔮" : "🏢"}</div>
                       {renamingBiz?.id === biz.id ? (
@@ -11032,7 +11021,7 @@ function BusinessPage({ data, update }) {
                           {l.paid ? "✅ Paid" : "⏳ Pending"}
                         </span>
                         {/* Delete */}
-                        <button onClick={() => deleteBizLiability(activeBiz.id, l.id)}
+                        <button aria-label="Delete" onClick={() => deleteBizLiability(activeBiz.id, l.id)}
                           style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 14, opacity: 0.5, padding: 0 }}>🗑</button>
                       </div>
                     ))}
@@ -11078,7 +11067,7 @@ function BusinessPage({ data, update }) {
                     style={{ background: "var(--color-background-primary)", borderRadius: 14, border: "0.5px solid var(--color-border-secondary)", padding: "1.2rem", cursor: renamingYear?.year === s.year ? "default" : "pointer", borderTop: "3px solid #1a6b3c", position: "relative" }}
                     onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}>
-                    <button onClick={ev => { ev.stopPropagation(); deleteYear(s.year); }}
+                    <button aria-label="Delete" onClick={ev => { ev.stopPropagation(); deleteYear(s.year); }}
                       style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 14, opacity: 0.5, padding: 2 }}>🗑</button>
                     <div style={{ fontSize: 28, marginBottom: 4 }}>📁</div>
                     <div style={{ fontWeight: 700, fontSize: 22, fontFamily: "'DM Serif Display', serif", marginBottom: 6 }}>{s.year}</div>
@@ -11161,7 +11150,7 @@ function BusinessPage({ data, update }) {
                           {subtotal > 0 ? `₹${fmt(subtotal)}` : "—"}
                         </div>
                         {monthForm.rows.length > 1 ? (
-                          <button onClick={() => setMonthForm(p => ({ ...p, rows: p.rows.filter((_, i) => i !== idx) }))}
+                          <button aria-label="Remove" onClick={() => setMonthForm(p => ({ ...p, rows: p.rows.filter((_, i) => i !== idx) }))}
                             style={{ flexShrink: 0, background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 5, padding: "3px 8px", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
                             ×
                           </button>
@@ -11241,14 +11230,14 @@ function BusinessPage({ data, update }) {
                     <div style={{ background: "var(--color-background-primary)", borderRadius: 14, border: "0.5px solid var(--color-border-secondary)", padding: "1.2rem 1.4rem", marginBottom: 16 }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, borderBottom: "0.5px solid var(--color-border-tertiary)", paddingBottom: 10 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <button onClick={() => setSelectedNonDayMonth(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, padding: 0 }}>←</button>
+                          <button aria-label="Back" onClick={() => setSelectedNonDayMonth(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, padding: 0 }}>←</button>
                           {renamingMonth ? (
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <select value={editMonth} onChange={e => setEditMonth(e.target.value)} style={{ fontSize: 14, fontWeight: 600, border: "1.5px solid #1a6b3c", borderRadius: 7, padding: "4px 8px", background: "#fff", color: "#111", outline: "none" }}>
                                 {ML.map(m => { const used = yearEntries.some(e => e.month === m && e.id !== entry.id); return <option key={m} value={m} disabled={used}>{m}{used?" ✓ already added":""}</option>; })}
                               </select>
-                              <button onClick={saveMonthRename} style={{ background: "#1a6b3c", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 12, color: "#fff", fontWeight: 600 }}>✓</button>
-                              <button onClick={() => { setEditMonth(entry.month); setRenamingMonth(false); }} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>✕</button>
+                              <button aria-label="Done" onClick={saveMonthRename} style={{ background: "#1a6b3c", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 12, color: "#fff", fontWeight: 600 }}>✓</button>
+                              <button aria-label="Close" onClick={() => { setEditMonth(entry.month); setRenamingMonth(false); }} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>✕</button>
                             </div>
                           ) : (
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -11262,7 +11251,7 @@ function BusinessPage({ data, update }) {
                             ? <button onClick={() => { setEditRows(breakdown.map(r=>({qty:String(r.qty),price:String(r.price)}))); setEditing(true); }} style={{ background: "var(--color-background-secondary)", border: "0.5px solid var(--color-border-secondary)", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", fontWeight: 500 }}>✏️ Edit</button>
                             : <><button onClick={() => setEditing(false)} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 7, padding: "5px 12px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>Cancel</button>
                                <button onClick={saveEdits} style={{ background: "#1a6b3c", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, color: "#fff", fontWeight: 600 }}>✓ Save</button></>}
-                          <button onClick={ev => { ev.stopPropagation(); deleteEntry(entry.id); setSelectedNonDayMonth(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 15, opacity: 0.5 }}>🗑</button>
+                          <button aria-label="Delete" onClick={ev => { ev.stopPropagation(); deleteEntry(entry.id); setSelectedNonDayMonth(null); }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 15, opacity: 0.5 }}>🗑</button>
                         </div>
                       </div>
                       <div style={{ marginBottom: 14 }}>
@@ -11282,7 +11271,7 @@ function BusinessPage({ data, update }) {
                                   <input type="text" inputMode="decimal" placeholder="e.g. 120" value={row.qty} onChange={e => { const v=e.target.value; if(v===""||/^\d*\.?\d*$/.test(v)) setEditRows(p=>{const r=[...p];r[idx]={...r[idx],qty:v};return r;}); }} style={{ width:"100%",boxSizing:"border-box",padding:"5px 8px",fontSize:13,fontWeight:600,border:"0.5px solid var(--color-border-secondary)",borderRadius:6,background:"var(--color-background-secondary)",color:"#1a6b3c",outline:"none" }} onFocus={ev=>{ev.target.style.border="1.5px solid #1a6b3c";ev.target.style.background="#fff";}} onBlur={ev=>{ev.target.style.border="0.5px solid var(--color-border-secondary)";ev.target.style.background="var(--color-background-secondary)";}} />
                                   <input type="text" inputMode="decimal" placeholder="e.g. 30" value={row.price} onChange={e => { const v=e.target.value; if(v===""||/^\d*\.?\d*$/.test(v)) setEditRows(p=>{const r=[...p];r[idx]={...r[idx],price:v};return r;}); }} style={{ width:"100%",boxSizing:"border-box",padding:"5px 8px",fontSize:13,fontWeight:600,border:"0.5px solid var(--color-border-secondary)",borderRadius:6,background:"var(--color-background-secondary)",color:"#9b59b6",outline:"none" }} onFocus={ev=>{ev.target.style.border="1.5px solid #9b59b6";ev.target.style.background="#fff";}} onBlur={ev=>{ev.target.style.border="0.5px solid var(--color-border-secondary)";ev.target.style.background="var(--color-background-secondary)";}} />
                                   <div style={{ fontSize:13,fontWeight:700,color:sub>0?"#1a6b3c":"var(--color-text-secondary)",minWidth:80,textAlign:"right" }}>{sub>0?`₹${fmt(sub)}`:"—"}</div>
-                                  {editRows.length>1 ? <button onClick={()=>setEditRows(p=>p.filter((_,i)=>i!==idx))} style={{ background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:5,padding:"4px 9px",cursor:"pointer",fontSize:13,fontWeight:700 }}>×</button> : <div style={{width:28}}/>}
+                                  {editRows.length>1 ? <button aria-label="Remove" onClick={()=>setEditRows(p=>p.filter((_,i)=>i!==idx))} style={{ background:"#fee2e2",color:"#ef4444",border:"none",borderRadius:5,padding:"4px 9px",cursor:"pointer",fontSize:13,fontWeight:700 }}>×</button> : <div style={{width:28}}/>}
                                 </div>
                               );
                             })}
@@ -11502,7 +11491,7 @@ function BusinessPage({ data, update }) {
                       onMouseEnter={ev => { ev.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"; }}
                       onMouseLeave={ev => ev.currentTarget.style.boxShadow = "none"}>
                       {/* Delete btn */}
-                      <button onClick={ev => { ev.stopPropagation(); deleteEntry(e.id); }}
+                      <button aria-label="Delete" onClick={ev => { ev.stopPropagation(); deleteEntry(e.id); }}
                         style={{ position: "absolute", top: 10, right: 10, background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 14, opacity: 0.5, padding: 2 }}>🗑</button>
                       {/* Folder icon + name */}
                       <div style={{ fontSize: 28, marginBottom: 4 }}>{isDayWise ? "📁" : "📋"}</div>
@@ -11618,7 +11607,7 @@ function BusinessPage({ data, update }) {
               {/* Header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, borderBottom: "0.5px solid var(--color-border-tertiary)", paddingBottom: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <button onClick={() => setSelectedNonDayMonth(null)}
+                  <button aria-label="Back" onClick={() => setSelectedNonDayMonth(null)}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, padding: 0, lineHeight: 1 }}>←</button>
                   {renamingMonth ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -11629,9 +11618,9 @@ function BusinessPage({ data, update }) {
                           return <option key={m} value={m} disabled={usedByOther}>{m}{usedByOther ? " ✓ already added" : ""}</option>;
                         })}
                       </select>
-                      <button onClick={saveMonthRename}
+                      <button aria-label="Done" onClick={saveMonthRename}
                         style={{ background: "#1a6b3c", border: "none", borderRadius: 6, padding: "4px 12px", cursor: "pointer", fontSize: 12, color: "#fff", fontWeight: 600 }}>✓</button>
-                      <button onClick={() => { setEditMonth(entry.month); setRenamingMonth(false); }}
+                      <button aria-label="Close" onClick={() => { setEditMonth(entry.month); setRenamingMonth(false); }}
                         style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "4px 10px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)" }}>✕</button>
                     </div>
                   ) : (
@@ -11661,7 +11650,7 @@ function BusinessPage({ data, update }) {
                       </button>
                     </>
                   )}
-                  <button onClick={ev => { ev.stopPropagation(); deleteEntry(entry.id); setSelectedNonDayMonth(null); }}
+                  <button aria-label="Delete" onClick={ev => { ev.stopPropagation(); deleteEntry(entry.id); setSelectedNonDayMonth(null); }}
                     style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 15, opacity: 0.5 }}>🗑</button>
                 </div>
               </div>
@@ -11702,7 +11691,7 @@ function BusinessPage({ data, update }) {
                             {sub > 0 ? `₹${fmt(sub)}` : "—"}
                           </div>
                           {editRows.length > 1 ? (
-                            <button onClick={() => setEditRows(p => p.filter((_, i) => i !== idx))}
+                            <button aria-label="Remove" onClick={() => setEditRows(p => p.filter((_, i) => i !== idx))}
                               style={{ background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 5, padding: "4px 9px", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>×</button>
                           ) : <div style={{ width: 28 }} />}
                         </div>
@@ -12168,8 +12157,8 @@ function DocsPage({ data, update }) {
         )}
         <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 3 }}>{sub}</div>
         <div style={{ position: "absolute", top: 8, right: 8, display: "flex", gap: 2 }} onClick={e => e.stopPropagation()}>
-          <button onClick={onRename} title="Rename" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, opacity: 0.5 }}>✏️</button>
-          <button onClick={onDelete} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, opacity: 0.5 }}>🗑️</button>
+          <button aria-label="Rename" onClick={onRename} title="Rename" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, opacity: 0.5 }}>✏️</button>
+          <button aria-label="Delete" onClick={onDelete} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 2, opacity: 0.5 }}>🗑️</button>
         </div>
       </div>
     );
@@ -12648,7 +12637,7 @@ function ProjectsPage({ data, update }) {
                       onKeyDown={e => { if (e.key === "Enter") { renameProject(project.id, renamingProject.value); setRenamingProject(null); } if (e.key === "Escape") setRenamingProject(null); }}
                       onBlur={() => { renameProject(project.id, renamingProject.value); setRenamingProject(null); }}
                       style={{ fontSize: 22, fontFamily: "'DM Serif Display', serif", border: "0.5px solid #1a6b3c", borderRadius: 7, padding: "2px 10px", outline: "none", background: "var(--color-background-secondary)", minWidth: 160 }} />
-                  : <><span>{project.name}</span><button onClick={() => setRenamingProject({ id: project.id, value: project.name })} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "inherit" }}>✏️</button></>
+                  : <><span>{project.name}</span><button aria-label="Edit" onClick={() => setRenamingProject({ id: project.id, value: project.name })} style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 12, color: "var(--color-text-secondary)", fontFamily: "inherit" }}>✏️</button></>
                 )
               : "Projects"}
           </h1>
@@ -12710,9 +12699,9 @@ function ProjectsPage({ data, update }) {
                     onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 16px rgba(0,0,0,0.08)"}
                     onMouseLeave={e => e.currentTarget.style.boxShadow = "none"}
                   >
-                    <button onClick={ev => { ev.stopPropagation(); deleteProject(pr.id); }}
+                    <button aria-label="Delete" onClick={ev => { ev.stopPropagation(); deleteProject(pr.id); }}
                       style={{ position: "absolute", top: 10, right: 34, background: "none", border: "none", cursor: "pointer", fontSize: 14, opacity: 0.4, padding: 2 }}>🗑</button>
-                    <button onClick={ev => { ev.stopPropagation(); setRenamingProject({ id: pr.id, value: pr.name }); }}
+                    <button aria-label="Rename" onClick={ev => { ev.stopPropagation(); setRenamingProject({ id: pr.id, value: pr.name }); }}
                       style={{ position: "absolute", top: 10, right: 8, background: "none", border: "none", cursor: "pointer", fontSize: 13, opacity: 0.55, padding: 2 }} title="Rename">✏️</button>
                     <div style={{ fontSize: 28, marginBottom: 6 }}>📁</div>
                     {renamingProject?.id === pr.id ? (
@@ -12989,8 +12978,8 @@ function ProjectsPage({ data, update }) {
                                 })()}
                               </div>
                               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                                <button onClick={() => startEditTask(t)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, opacity: 0.5, padding: "2px 4px" }} title="Edit">✏️</button>
-                                <button onClick={() => deleteTodo(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "2px 4px" }}>✕</button>
+                                <button aria-label="Edit" onClick={() => startEditTask(t)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, opacity: 0.5, padding: "2px 4px" }} title="Edit">✏️</button>
+                                <button aria-label="Remove" onClick={() => deleteTodo(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "2px 4px" }}>✕</button>
                               </div>
                             </div>
                           )}
@@ -13020,7 +13009,7 @@ function ProjectsPage({ data, update }) {
                       const types = t.taskTypes && t.taskTypes.length > 0 ? t.taskTypes : (t.taskType ? [t.taskType] : []);
                       return (
                         <div key={t.id} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-secondary)" }}>
-                          <button onClick={() => toggleTodo(t.id)} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid #1a6b3c", background: "#e8f5ee", cursor: "pointer", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#1a6b3c", fontSize: 10 }}>✓</button>
+                          <button aria-label="Done" onClick={() => toggleTodo(t.id)} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid #1a6b3c", background: "#e8f5ee", cursor: "pointer", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#1a6b3c", fontSize: 10 }}>✓</button>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, textDecoration: "line-through", color: "var(--color-text-secondary)", wordBreak: "break-word", marginBottom: 3 }}>{t.text}</div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginBottom: 2 }}>
@@ -13035,7 +13024,7 @@ function ProjectsPage({ data, update }) {
                           </div>
                           <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                             <button onClick={() => toggleTodo(t.id)} style={{ background: "none", border: "0.5px solid #1a6b3c44", borderRadius: 5, cursor: "pointer", fontSize: 10, color: "#1a6b3c", padding: "2px 7px", fontWeight: 500 }} title="Reopen task">↩ Reopen</button>
-                            <button onClick={() => deleteTodo(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "2px 4px" }}>✕</button>
+                            <button aria-label="Remove" onClick={() => deleteTodo(t.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "2px 4px" }}>✕</button>
                           </div>
                         </div>
                       );
@@ -13210,14 +13199,14 @@ function ProjectsPage({ data, update }) {
                           <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
                             <button onClick={() => toggleDayEntry(e.id)} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid var(--color-border-secondary)", background: "transparent", cursor: "pointer", flexShrink: 0 }} />
                             <span style={{ flex: 1, fontSize: 13 }}>{e.text}</span>
-                            <button onClick={() => deleteDayEntry(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px" }}>✕</button>
+                            <button aria-label="Remove" onClick={() => deleteDayEntry(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px" }}>✕</button>
                           </div>
                         ))}
                         {todayEntries.filter(e => e.done).map(e => (
                           <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: "0.5px solid var(--color-border-tertiary)", opacity: 0.55 }}>
-                            <button onClick={() => toggleDayEntry(e.id)} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid #1a6b3c", background: "#e8f5ee", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#1a6b3c", fontSize: 10 }}>✓</button>
+                            <button aria-label="Done" onClick={() => toggleDayEntry(e.id)} style={{ width: 18, height: 18, borderRadius: 4, border: "1.5px solid #1a6b3c", background: "#e8f5ee", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#1a6b3c", fontSize: 10 }}>✓</button>
                             <span style={{ flex: 1, fontSize: 13, textDecoration: "line-through", color: "var(--color-text-secondary)" }}>{e.text}</span>
-                            <button onClick={() => deleteDayEntry(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px" }}>✕</button>
+                            <button aria-label="Remove" onClick={() => deleteDayEntry(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px" }}>✕</button>
                           </div>
                         ))}
                       </div>
@@ -13260,7 +13249,7 @@ function ProjectsPage({ data, update }) {
                                     <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 14px 7px 30px", borderBottom: "0.5px solid var(--color-border-tertiary)", opacity: e.done ? 0.65 : 1 }}>
                                       <button onClick={() => toggleDayEntry(e.id)} style={{ width: 16, height: 16, borderRadius: 3, border: e.done ? "1.5px solid #1a6b3c" : "1.5px solid var(--color-border-secondary)", background: e.done ? "#e8f5ee" : "transparent", cursor: "pointer", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#1a6b3c", fontSize: 9 }}>{e.done ? "✓" : ""}</button>
                                       <span style={{ flex: 1, fontSize: 12, textDecoration: e.done ? "line-through" : "none", color: e.done ? "var(--color-text-secondary)" : "var(--color-text-primary)" }}>{e.text}</span>
-                                      <button onClick={() => deleteDayEntry(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px", flexShrink: 0 }}>✕</button>
+                                      <button aria-label="Remove" onClick={() => deleteDayEntry(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px", flexShrink: 0 }}>✕</button>
                                     </div>
                                   ))}
                                 </div>
@@ -13338,9 +13327,9 @@ function NoteBlock({ note, onUpdate, onDelete, colors }) {
         {editing ? (
           <button onClick={() => setEditing(false)} style={{ background: "#1a6b3c", color: "#fff", border: "none", borderRadius: 5, padding: "2px 8px", cursor: "pointer", fontSize: 11, fontWeight: 500, whiteSpace: "nowrap" }}>Done</button>
         ) : (
-          <button onClick={() => setEditing(true)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, opacity: 0.5, padding: "0 2px" }} title="Edit">✏️</button>
+          <button aria-label="Edit" onClick={() => setEditing(true)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, opacity: 0.5, padding: "0 2px" }} title="Edit">✏️</button>
         )}
-        <button onClick={() => onDelete(note.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px" }}>🗑</button>
+        <button aria-label="Delete" onClick={() => onDelete(note.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 12, opacity: 0.5, padding: "0 2px" }}>🗑</button>
       </div>
       {/* Note body */}
       {editing ? (
@@ -13425,7 +13414,7 @@ function CanvasStickyNote({ note, pan, onUpdate, onDelete, onMoveEnd }) {
           ))}
         </div>
         {/* Delete button — always visible on hover, subtle otherwise */}
-        <button
+        <button aria-label="Delete sticky note"
           onMouseDown={e => { e.stopPropagation(); onDelete(note.id); }}
           title="Delete sticky note"
           style={{
@@ -13694,8 +13683,8 @@ function MergedNoteEditor({ note, updateNote, deleteNote, onEsc, NOTE_COLORS, ma
           <div style={{ width: 1, height: 16, background: "var(--color-border-secondary)" }} />
           <span style={{ fontSize: 10, color: "var(--color-text-secondary)" }}>Node:</span>
           <button onClick={() => { setEditingId(selNode.id); setEditLabel(selNode.label); }} style={{ ...btn }}>✏️ Rename</button>
-          {!selNode.isRoot && <button onClick={() => deleteNode(selected)} style={{ ...btn, color: "#d44", borderColor: "#d44" }}>🗑</button>}
-          {selNode.isRoot && nodes.filter(n => n.isRoot).length > 1 && <button onClick={() => deleteNode(selected)} style={{ ...btn, color: "#d44", borderColor: "#d44" }}>🗑</button>}
+          {!selNode.isRoot && <button aria-label="Delete" onClick={() => deleteNode(selected)} style={{ ...btn, color: "#d44", borderColor: "#d44" }}>🗑</button>}
+          {selNode.isRoot && nodes.filter(n => n.isRoot).length > 1 && <button aria-label="Delete" onClick={() => deleteNode(selected)} style={{ ...btn, color: "#d44", borderColor: "#d44" }}>🗑</button>}
           <div style={{ display: "flex", gap: 3 }}>
             {NC.map(c => <button key={c} onClick={() => changeNodeColor(selected, c)} style={{ width: 13, height: 13, borderRadius: "50%", background: c, border: selNode.color === c ? "2px solid #6d28d9" : "1px solid #ccc", cursor: "pointer", padding: 0 }} />)}
           </div>
@@ -13783,7 +13772,7 @@ function MergedNoteEditor({ note, updateNote, deleteNote, onEsc, NOTE_COLORS, ma
                   ))}
                 </div>
                 {/* Delete */}
-                <button onMouseDown={e => e.stopPropagation()} onClick={() => deleteTextBlock(tb.id)}
+                <button aria-label="Remove" onMouseDown={e => e.stopPropagation()} onClick={() => deleteTextBlock(tb.id)}
                   style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#d44", padding: 0, lineHeight: 1, marginLeft: 4 }}>✕</button>
               </div>
               {/* The editable text */}
@@ -13984,7 +13973,7 @@ function ThreeDotMenu({ onEdit, onDelete }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ position: "relative", display: "inline-block" }}>
-      <button
+      <button aria-label="More options"
         onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
         style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "var(--color-text-secondary)", padding: "2px 6px", borderRadius: 4, lineHeight: 1 }}
       >⋮</button>
@@ -14800,7 +14789,7 @@ function PFAccountPage({ data, update }) {
                     <td style={{ padding: "10px 10px", color: "#1a6b3c", fontWeight: 500 }}>{fmtR(c.employee)}</td>
                     <td style={{ padding: "10px 10px", color: "#4da6ff", fontWeight: 500 }}>{fmtR(c.employer)}</td>
                     <td style={{ padding: "10px 10px" }}>
-                      <button onClick={() => deleteContribution(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 14, padding: "2px 6px" }}>🗑</button>
+                      <button aria-label="Delete" onClick={() => deleteContribution(c.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 14, padding: "2px 6px" }}>🗑</button>
                     </td>
                   </tr>
                 ))}
@@ -14851,7 +14840,7 @@ function PFAccountPage({ data, update }) {
                         <span style={{ background: `${srcColor}18`, color: srcColor, borderRadius: 6, padding: "2px 8px", fontSize: 11, fontWeight: 600 }}>{srcLabel}</span>
                       </td>
                       <td style={{ padding: "10px 10px" }}>
-                        <button onClick={() => deleteWithdrawal(w.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 14, padding: "2px 6px" }}>🗑</button>
+                        <button aria-label="Delete" onClick={() => deleteWithdrawal(w.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 14, padding: "2px 6px" }}>🗑</button>
                       </td>
                     </tr>
                   );
@@ -15866,7 +15855,7 @@ function MutualFundsPage({ data, update }) {
                             ? <span style={{ color: rateColor(mXIRR), fontWeight: 600 }}>{fmtRate(mXIRR)}</span>
                             : <span style={{ color: "var(--color-text-secondary)", fontSize: 11 }} title="Add start date">—</span>}
                         </td>
-                        <td style={{ padding: "9px 14px", textAlign: "right" }}><button onClick={() => deleteMF(m.id)} style={{ background: "none", border: "0.5px solid #d44", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11, color: "#d44" }}>🗑</button></td>
+                        <td style={{ padding: "9px 14px", textAlign: "right" }}><button aria-label="Delete" onClick={() => deleteMF(m.id)} style={{ background: "none", border: "0.5px solid #d44", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontSize: 11, color: "#d44" }}>🗑</button></td>
                       </tr>
                     );
                   })}
@@ -16556,7 +16545,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
                   onChange={e => setForm(f => ({ ...f, yahooOverride: e.target.value.trim().toUpperCase() }))}
                   style={{ flex: 1, fontSize: 11, padding: "5px 8px", border: "0.5px solid #bae6fd", borderRadius: 6, outline: "none", fontFamily: "monospace" }}
                 />
-                {form.yahooOverride && <button onClick={() => setForm(f => ({ ...f, yahooOverride: "" }))} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 12 }}>✕</button>}
+                {form.yahooOverride && <button aria-label="Close" onClick={() => setForm(f => ({ ...f, yahooOverride: "" }))} style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 12 }}>✕</button>}
               </div>
               <div style={{ fontSize: 10, color: "#64748b", marginTop: 4, lineHeight: 1.5 }}>
                 If LTP shows "No price", search the stock on <a href={`https://finance.yahoo.com/lookup/?s=${encodeURIComponent(form.symbol || "")}`} target="_blank" rel="noreferrer" style={{ color: "#0369a1" }}>Yahoo Finance</a>, copy the ticker exactly (e.g. <code>ABCAPITAL.NS</code>) and paste above.
@@ -16688,9 +16677,9 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
                       <div style={{ fontSize: 11, color: pnlColor(h.pnlPct) }}>{fmtPct(h.pnlPct)}</div>
                     </div>
                   )}
-                  <button onClick={() => { const m = h._merged && h._ids?.length > 1 ? { ...h, id: h._ids[0] } : (holdings.find(hh => hh.id === (h._ids?.[0] ?? h.id)) || h); openEdit(m); }}
+                  <button aria-label="Edit" onClick={() => { const m = h._merged && h._ids?.length > 1 ? { ...h, id: h._ids[0] } : (holdings.find(hh => hh.id === (h._ids?.[0] ?? h.id)) || h); openEdit(m); }}
                     style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, cursor: "pointer", fontSize: 13, padding: "4px 8px", color: "var(--color-text-secondary)" }}>✏️</button>
-                  <button onClick={async () => { if (await askConfirm(`Delete ${h.symbol}?`)) { if (h._ids) update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => !h._ids.includes(x.id)) })); else update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => x.id !== h.id) })); } }}
+                  <button aria-label="Delete" onClick={async () => { if (await askConfirm(`Delete ${h.symbol}?`)) { if (h._ids) update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => !h._ids.includes(x.id)) })); else update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => x.id !== h.id) })); } }}
                     style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#d44", padding: "2px 4px" }}>🗑</button>
                 </div>
               </div>
@@ -16895,7 +16884,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
                             </div>
                           </td>
                           <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                            <button onClick={async () => {
+                            <button aria-label="Delete" onClick={async () => {
                               if (await askConfirm("Remove this realized entry?")) {
                                 update(p => ({ [soldKey]: (p[soldKey] || []).filter(x => x.id !== e.id) }));
                               }
@@ -17274,7 +17263,7 @@ function PortfolioAnalysisView({ data }) {
               {sortedRows().map((h,i)=>{
                 const weight = h.weight.toFixed(1);
                 return (
-                  <tr key={i} style={{borderBottom:"0.5px solid var(--color-border-tertiary)"}}
+                  <tr key={`${h.region}-${h.id ?? h.ticker}-${i}`} style={{borderBottom:"0.5px solid var(--color-border-tertiary)"}}
                     onMouseEnter={e=>e.currentTarget.style.background="var(--color-background-primary)"}
                     onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
                     <td style={{padding:"7px 10px",textAlign:"center"}}>{h.region}</td>
