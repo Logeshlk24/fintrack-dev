@@ -1,3 +1,4 @@
+import ErrorBoundary from "./ErrorBoundary";
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import {
   auth,
@@ -957,6 +958,7 @@ export default function App() {
 
       {/* Main */}
       <main style={{ flex: 1, padding: mobile ? "1rem" : "1.5rem", paddingBottom: mobile ? "80px" : "1.5rem", overflowY: "auto", overflowX: "hidden", minWidth: 0, maxWidth: "100%" }}>
+        <ErrorBoundary resetKey={page} onHome={() => setPage("overview")}>
         {page === "overview" && <Overview data={data} netWorth={netWorth} foNetPnl={foNetPnl} setPage={setPage} toggles={toggles} update={update} portfolioOn={portfolioOn} />}
         {page === "money" && <MoneyPage data={data} update={update} tab={moneyTab} setTab={setMoneyTab} processScheduledPayments={processScheduledPayments} dataRef={dataRef} />}
         {page === "fo" && <FOPage data={data} update={update} tab={foTab} setTab={setFoTab} calcCharges={calcCharges} foNetPnl={foNetPnl} />}
@@ -965,6 +967,7 @@ export default function App() {
         {page === "business" && <BusinessPage data={data} update={update} />}
         {page === "projects" && <ProjectsPage data={data} update={update} />}
         {page === "settings" && <SettingsPage data={data} update={update} tab={settingsTab} setTab={setSettingsTab} navItems={navItems} navEditMode={navEditMode} setNavEditMode={setNavEditMode} onNavDragStart={onNavDragStart} onNavDragOver={onNavDragOver} onNavDrop={onNavDrop} navDragOver={navDragOver} navDragIdx={navDragIdx} setNavDragOver={setNavDragOver} firebaseUser={firebaseUser} />}
+        </ErrorBoundary>
       </main>
 
       {/* ── Mobile Bottom Navigation Bar ── */}
@@ -14092,7 +14095,7 @@ const NSE_BY_SYMBOL = Object.fromEntries(NSE_STOCKS.map(([s,n]) => [s, n]));
 const NSE_SEARCH = NSE_STOCKS.map(([symbol, name]) => ({ symbol, name, lower: symbol.toLowerCase() + " " + name.toLowerCase() }));
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PORTFOLIO PAGE — CORS-safe prices via corsproxy.io + stock autocomplete
+// PORTFOLIO PAGE — prices via our own /api routes + stock autocomplete
 // ═══════════════════════════════════════════════════════════════════════════════
 // ─── Portfolio Hub — tabs: Overall / Indian Stocks / US Stocks / Mutual Funds ─
 function PortfolioHub({ data, update }) {
@@ -14888,8 +14891,7 @@ function DividendView({ data }) {
     return s;
   }
 
-  // Fetch dividend data using Vercel API route as a proxy with crumb auth
-  // The API route fetches a crumb from Yahoo and uses it for authenticated requests
+  // Fetch dividend data via the /api/stock-dividend Vercel route (crumb auth happens server-side)
   async function fetchDividends(holdingsOverride) {
     const holdings = holdingsOverride ?? indHoldings;
     setLoading(true); setError(""); setLoaded(false);
@@ -14899,86 +14901,21 @@ function DividendView({ data }) {
     const tickers = [...new Set(allH.map(h => toYahooTicker(h.symbol, h.exchange, h.yahooOverride)))];
     setProgress({ done: 0, total: tickers.length });
 
-    // Try to get a crumb from Yahoo using a CORS proxy, then fetch dividend data
-    let crumb = "";
-    let yahooCookie = "";
-    try {
-      // Step 1: Get crumb via proxy
-      const crumbUrl = "https://query1.finance.yahoo.com/v1/test/getcrumb";
-      const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(crumbUrl)}`;
-      const crumbRes = await fetch(proxyUrl, { credentials: "include", signal: AbortSignal.timeout(5000) });
-      if (crumbRes.ok) crumb = (await crumbRes.text()).trim();
-    } catch (err) { console.warn("Dividend: crumb fetch failed:", err); }
-
-    const BATCH = 3;
+    // Fetch through our own /api/stock-dividend route (Yahoo is called server-side),
+    // instead of public CORS proxies. Tickers go in small chunks so progress shows.
+    const CHUNK = 15;
     const collected = {};
-
-    for (let i = 0; i < tickers.length; i += BATCH) {
-      const batch = tickers.slice(i, i + BATCH);
-      const results = await Promise.all(batch.map(async ticker => {
-        // Build Yahoo v10 quoteSummary URL
-        const modules = "summaryDetail,defaultKeyStatistics";
-        const base = `https://query1.finance.yahoo.com/v10/finance/quoteSummary/${encodeURIComponent(ticker)}?modules=${modules}${crumb ? "&crumb=" + encodeURIComponent(crumb) : ""}`;
-        const base2 = base.replace("query1", "query2");
-
-        const attempts = [
-          `https://corsproxy.io/?${encodeURIComponent(base)}`,
-          `https://corsproxy.io/?${encodeURIComponent(base2)}`,
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(base)}`,
-        ];
-
-        for (const url of attempts) {
-          try {
-            const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-            if (!r.ok) continue;
-            const j = await r.json();
-            const result = j?.quoteSummary?.result?.[0];
-            if (!result) continue;
-            const sd = result.summaryDetail || {};
-            const ks = result.defaultKeyStatistics || {};
-            const raw = v => (v && typeof v === "object" ? v.raw : v) ?? null;
-            const divRate  = raw(sd.dividendRate) ?? raw(sd.trailingAnnualDividendRate);
-            const divYield = raw(sd.dividendYield) ?? raw(sd.trailingAnnualDividendYield);
-            const isPaying = divRate != null && divRate > 0;
-            return {
-              ok: true, ticker, isPaying,
-              dividendRate: divRate, dividendYield: divYield,
-              trailingDivRate: raw(sd.trailingAnnualDividendRate),
-              trailingDivYield: raw(sd.trailingAnnualDividendYield),
-              exDividendDate: raw(sd.exDividendDate),
-              dividendDate: raw(ks.lastDividendDate) ?? raw(sd.exDividendDate),
-              lastDividendValue: raw(ks.lastDividendValue),
-              payoutRatio: raw(sd.payoutRatio),
-              fiveYearAvgYield: raw(sd.fiveYearAvgDividendYield),
-            };
-          } catch (err) { console.warn("Dividend: quoteSummary fetch failed:", err); }
-        }
-
-        // Fallback: v8 chart endpoint (has trailingAnnualDividendRate in meta)
-        const chartBase = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
-        const fallbackAttempts = [
-          `https://corsproxy.io/?${encodeURIComponent(chartBase)}`,
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(chartBase)}`,
-        ];
-        for (const url of fallbackAttempts) {
-          try {
-            const r = await fetch(url, { signal: AbortSignal.timeout(10000) });
-            if (!r.ok) continue;
-            const j = await r.json();
-            const meta = j?.chart?.result?.[0]?.meta;
-            if (!meta) continue;
-            const divRate  = meta.trailingAnnualDividendRate ?? null;
-            const divYield = meta.trailingAnnualDividendYield ?? null;
-            return { ok: true, ticker, isPaying: divRate > 0, dividendRate: divRate, dividendYield: divYield,
-              trailingDivRate: divRate, trailingDivYield: divYield, exDividendDate: null, dividendDate: null,
-              lastDividendValue: null, payoutRatio: null, fiveYearAvgYield: null };
-          } catch (err) { console.warn("Dividend: chart fallback failed:", err); }
-        }
-
-        return { ok: false, ticker, isPaying: false };
-      }));
-      results.forEach((r, j) => { collected[batch[j]] = r; });
-      setProgress({ done: Math.min(i + BATCH, tickers.length), total: tickers.length });
+    for (let i = 0; i < tickers.length; i += CHUNK) {
+      const chunk = tickers.slice(i, i + CHUNK);
+      let got = {};
+      try {
+        const r = await fetch(`/api/stock-dividend?ticker=${chunk.map(encodeURIComponent).join(",")}`, { signal: AbortSignal.timeout(30000) });
+        if (r.ok) got = await r.json();
+        else console.warn("Dividend API error:", r.status);
+      } catch (err) { console.warn("Dividend: API fetch failed:", err); }
+      // the API upper-cases tickers
+      chunk.forEach(t => { collected[t] = got[t] || got[t.toUpperCase()] || { ok: false, ticker: t, isPaying: false }; });
+      setProgress({ done: Math.min(i + CHUNK, tickers.length), total: tickers.length });
     }
 
     setDivData(collected);

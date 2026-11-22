@@ -80,7 +80,7 @@ async function fetchDividend(ticker, cookie, crumb) {
       json = null;
     } catch (_) {}
   }
-  if (!json?.quoteSummary?.result?.[0]) return { ok: false, ticker };
+  if (!json?.quoteSummary?.result?.[0]) return fetchChartFallback(ticker, cookie);
 
   const result = json.quoteSummary.result[0];
   const sd = result.summaryDetail || {};
@@ -99,4 +99,27 @@ async function fetchDividend(ticker, cookie, crumb) {
     payoutRatio: raw(sd.payoutRatio),
     fiveYearAvgYield: raw(sd.fiveYearAvgDividendYield),
   };
+}
+
+// Fallback: the v8 chart endpoint carries trailingAnnualDividendRate/Yield in its meta
+async function fetchChartFallback(ticker, cookie) {
+  const path = `/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+  for (const host of ["query1", "query2"]) {
+    try {
+      const r = await fetch(`https://${host}.finance.yahoo.com${path}`, { headers: HEADERS(cookie) });
+      if (!r.ok) continue;
+      const meta = (await r.json())?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const divRate  = meta.trailingAnnualDividendRate ?? null;
+      const divYield = meta.trailingAnnualDividendYield ?? null;
+      return {
+        ok: true, ticker, isPaying: divRate != null && divRate > 0,
+        dividendRate: divRate, dividendYield: divYield,
+        trailingDivRate: divRate, trailingDivYield: divYield,
+        exDividendDate: null, dividendDate: null, lastDividendValue: null,
+        payoutRatio: null, fiveYearAvgYield: null,
+      };
+    } catch (_) { /* try the next host */ }
+  }
+  return { ok: false, ticker };
 }
