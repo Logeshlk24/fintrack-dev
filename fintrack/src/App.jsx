@@ -173,6 +173,17 @@ const ASSET_TYPES = ["Stocks & Equity", "Equity Funds", "Gold & Silver", "FD & R
 const STRATEGIES = ["Call", "Put"];
 const INSTRUMENTS = ["Index Options", "Stock Options", "Commodities"];
 
+// Unique record IDs. Date.now() alone repeats when two records are created in the same
+// millisecond (a fast double-click, or a loop), and the app finds records by ID.
+// Stays a millisecond timestamp (some code derives the created date from a numeric id),
+// but is strictly increasing within a session.
+let _lastUid = 0;
+function uid() {
+  const t = Date.now();
+  _lastUid = t > _lastUid ? t : _lastUid + 1;
+  return _lastUid;
+}
+
 // Local calendar date as YYYY-MM-DD. (new Date().toISOString() is the UTC date, which is
 // still "yesterday" in India between 12:00 am and 5:30 am.)
 function localDateStr(d = new Date()) {
@@ -1354,7 +1365,7 @@ function AddAssetMini({ update }) {
       </div>
       <input placeholder="Name (e.g. HDFC Balanced Advantage Fund)" value={name} onChange={e => setName(e.target.value)} style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }} />
       <input placeholder="Current Value (INR)" value={value} onChange={e => setValue(e.target.value)} style={{ width: "100%", marginBottom: 8, boxSizing: "border-box" }} />
-      <button onClick={() => { if (name && value) { update(p => ({ assets: [...p.assets, { id: Date.now(), type, name, value: parseFloat(value.replace(/,/g, "")), date: new Date().toISOString() }] })); setName(""); setValue(""); } }}
+      <button onClick={() => { if (name && value) { update(p => ({ assets: [...p.assets, { id: uid(), type, name, value: parseFloat(value.replace(/,/g, "")), date: new Date().toISOString() }] })); setName(""); setValue(""); } }}
         style={{ background: "#e8f5ee", color: "#1a6b3c", border: "0.5px solid #1a6b3c", borderRadius: 8, padding: "6px 16px", cursor: "pointer", fontSize: 13, fontWeight: 500 }}>+ Add Asset</button>
     </div>
   );
@@ -1573,7 +1584,7 @@ function Overview({ data, netWorth, foNetPnl, setPage, toggles, update, portfoli
     const text = newTodo.trim();
     if (!text) return;
     update(p => ({ overviewTodos: [...(p.overviewTodos || []), {
-      id: Date.now(), text, done: false,
+      id: uid(), text, done: false,
       repeat: repeatMode,
       weeklyDays: repeatMode === "weekly" && weeklyDays.length > 0 ? weeklyDays : null,
       createdAt: new Date().toISOString(),
@@ -2057,7 +2068,7 @@ function BudgetTab({ data, update, categories }) {
       // Add new budget
       update(p => ({
         budgets: [...(p.budgets || []), {
-          id: Date.now(),
+          id: uid(),
           category: form.category,
           amount: parseFloat(form.amount),
           month: form.month
@@ -2362,7 +2373,7 @@ function MoneyPage({ data, update, tab, setTab, processScheduledPayments, dataRe
   function addTx() {
     if (!form.amount) return;
     const type = tab === "income" ? "income" : "expense";
-    update(p => ({ transactions: [...p.transactions, { id: Date.now(), ...form, amount: parseFloat(form.amount), type }] }));
+    update(p => ({ transactions: [...p.transactions, { id: uid(), ...form, amount: parseFloat(form.amount), type }] }));
     setForm(p => ({ ...p, amount: "", category: "", note: "", date: today(), time: nowTime() }));
   }
 
@@ -2370,7 +2381,7 @@ function MoneyPage({ data, update, tab, setTab, processScheduledPayments, dataRe
     if (!acctForm.name.trim()) return;
     const opening = parseFloat(acctForm.balance) || 0;
     update(p => ({ banks: [...(p.banks || []), {
-      id: Date.now(),
+      id: uid(),
       name: acctForm.name.trim(),
       type: acctForm.type,
       openingBalance: opening,
@@ -2425,7 +2436,7 @@ function MoneyPage({ data, update, tab, setTab, processScheduledPayments, dataRe
     const isCC = adjusting.type === "Credit Card";
     const isAdd = isCC ? diff < 0 : diff > 0;
     const amt = Math.abs(diff);
-    update(p => ({ transactions: [...p.transactions, { id: Date.now(), type: isAdd ? "income" : "expense", amount: amt, category: adjustNote || (isAdd ? "Balance Top-up" : "Balance Adjustment"), note: `${adjusting.name} manual adjustment`, date: today(), bankId: adjusting.id }] }));
+    update(p => ({ transactions: [...p.transactions, { id: uid(), type: isAdd ? "income" : "expense", amount: amt, category: adjustNote || (isAdd ? "Balance Top-up" : "Balance Adjustment"), note: `${adjusting.name} manual adjustment`, date: today(), bankId: adjusting.id }] }));
     setAdjusting(null); setAdjustAmt(""); setAdjustNote("");
   }
 
@@ -3937,7 +3948,7 @@ function FOPage({ data, update, tab, setTab, calcCharges, foNetPnl }) {
     if (!form.strikePrice || !form.buyPremium) return;
     const displayName = form.instrument === "Stock Options" ? form.stockName : form.subInstrument;
     const broker = brokerProfiles.find(b => b.id === form.brokerId);
-    update(p => ({ foTrades: [...p.foTrades, { id: Date.now(), ...form, subInstrument: displayName, brokerName: broker?.name || "—", brokerCharges: broker?.charges || data.foCharges }] }));
+    update(p => ({ foTrades: [...p.foTrades, { id: uid(), ...form, subInstrument: displayName, brokerName: broker?.name || "—", brokerCharges: broker?.charges || data.foCharges }] }));
     setForm(p => ({ ...p, date: today(), strikePrice: "", expiry: "", buyPremium: "", sellPremium: "", lots: 1, notes: "" }));
   }
 
@@ -3947,7 +3958,7 @@ function FOPage({ data, update, tab, setTab, calcCharges, foNetPnl }) {
       update(p => ({ brokerProfiles: p.brokerProfiles.map(b => b.id === editingBroker ? { ...b, name: chargesForm.name, charges: { brokerage: chargesForm.brokerage, stt: chargesForm.stt, exchangeFee: chargesForm.exchangeFee, sebi: chargesForm.sebi, gst: chargesForm.gst, stampDuty: chargesForm.stampDuty } } : b) }));
       setEditingBroker(null);
     } else {
-      update(p => ({ brokerProfiles: [...(p.brokerProfiles || []), { id: Date.now(), name: chargesForm.name, charges: { brokerage: chargesForm.brokerage, stt: chargesForm.stt, exchangeFee: chargesForm.exchangeFee, sebi: chargesForm.sebi, gst: chargesForm.gst, stampDuty: chargesForm.stampDuty } }] }));
+      update(p => ({ brokerProfiles: [...(p.brokerProfiles || []), { id: uid(), name: chargesForm.name, charges: { brokerage: chargesForm.brokerage, stt: chargesForm.stt, exchangeFee: chargesForm.exchangeFee, sebi: chargesForm.sebi, gst: chargesForm.gst, stampDuty: chargesForm.stampDuty } }] }));
     }
     setChargesForm({ name: "", brokerage: 20, stt: 0.05, exchangeFee: 0.05, sebi: 0.0001, gst: 18, stampDuty: 0.003 });
   }
@@ -4545,7 +4556,7 @@ function EssentialsPage({ data, update, tab, setTab }) {
 
   function addGoal() {
     if (!goalForm.name || !goalForm.target) return;
-    update(p => ({ goals: [...p.goals, { id: Date.now(), ...goalForm, created: today() }] }));
+    update(p => ({ goals: [...p.goals, { id: uid(), ...goalForm, created: today() }] }));
     setGoalForm({ name: "", target: "", currency: "INR", targetDate: "", trackBy: "Net Worth (all assets)" });
   }
 
@@ -6209,7 +6220,7 @@ function AccountSettings({ data, update, cardStyle, sectionTitle }) {
   function addAccount() {
     if (!acctForm.name.trim()) return;
     const opening = parseFloat(acctForm.balance) || 0;
-    update(p => ({ banks: [...(p.banks || []), { id: Date.now(), name: acctForm.name.trim(), type: acctForm.type, openingBalance: opening, balance: opening, creditLimit: acctForm.type === "Credit Card" ? parseFloat(acctForm.creditLimit) || 0 : undefined, dueDate: acctForm.type === "Credit Card" ? acctForm.dueDate : undefined }] }));
+    update(p => ({ banks: [...(p.banks || []), { id: uid(), name: acctForm.name.trim(), type: acctForm.type, openingBalance: opening, balance: opening, creditLimit: acctForm.type === "Credit Card" ? parseFloat(acctForm.creditLimit) || 0 : undefined, dueDate: acctForm.type === "Credit Card" ? acctForm.dueDate : undefined }] }));
     setAcctForm({ name: "", type: "Bank", balance: "", creditLimit: "", dueDate: "" });
   }
 
@@ -6240,7 +6251,7 @@ function AccountSettings({ data, update, cardStyle, sectionTitle }) {
     if (diff === 0) { setAdjusting(null); setAdjustAmt(""); setAdjustNote(""); return; }
     const isAdd = adjusting.type === "Credit Card" ? diff < 0 : diff > 0;
     const amt = Math.abs(diff);
-    update(p => ({ transactions: [...p.transactions, { id: Date.now(), type: isAdd ? "income" : "expense", amount: amt, category: adjustNote || (isAdd ? "Balance Top-up" : "Balance Adjustment"), note: `${adjusting.name} manual adjustment`, date: localDateStr(), bankId: adjusting.id }] }));
+    update(p => ({ transactions: [...p.transactions, { id: uid(), type: isAdd ? "income" : "expense", amount: amt, category: adjustNote || (isAdd ? "Balance Top-up" : "Balance Adjustment"), note: `${adjusting.name} manual adjustment`, date: localDateStr(), bankId: adjusting.id }] }));
     setAdjusting(null); setAdjustAmt(""); setAdjustNote("");
   }
 
@@ -6586,14 +6597,14 @@ function TransferTab({ data, update, accounts }) {
     if (!form.toId)   return setError("Select a destination account.");
     if (form.fromId === form.toId) return setError("Source and destination can't be the same.");
     if (!amt || amt <= 0) return setError("Enter a valid amount.");
-    const pairId = "tf_" + Date.now();
+    const pairId = "tf_" + uid();
     const note   = form.note.trim() || "Account Transfer";
     const date   = form.date || today();
     update(p => ({
       transactions: [
         ...p.transactions,
-        { id: Date.now(),     type: "expense", amount: amt, category: "Transfer", note, date, bankId: form.fromId, isTransfer: true, transferRole: "out", transferPairId: pairId, transferToId: form.toId },
-        { id: Date.now() + 1, type: "income",  amount: amt, category: "Transfer", note, date, bankId: form.toId,   isTransfer: true, transferRole: "in",  transferPairId: pairId, transferFromId: form.fromId },
+        { id: uid(),     type: "expense", amount: amt, category: "Transfer", note, date, bankId: form.fromId, isTransfer: true, transferRole: "out", transferPairId: pairId, transferToId: form.toId },
+        { id: uid(), type: "income",  amount: amt, category: "Transfer", note, date, bankId: form.toId,   isTransfer: true, transferRole: "in",  transferPairId: pairId, transferFromId: form.fromId },
       ]
     }));
     setForm(p => ({ ...p, amount: "", note: "" }));
@@ -7292,7 +7303,7 @@ function ScheduledPaymentsTab({ data, update, accounts, processScheduledPayments
     const isWeekly = form.freq === "custom" && form.customUnit === "weeks";
     const sd = new Date(form.startDate);
     const newPayment = {
-      id: Date.now(), ...form,
+      id: uid(), ...form,
       amount: parseFloat(form.amount),
       day: isWeekly ? (sd.getDate()) : parseInt(form.day),
       startMonth: form.startDate.slice(0, 7),
@@ -7900,7 +7911,7 @@ function LiabilitiesTab({ data, update }) {
     if (!liabilityForm.name || !liabilityForm.amount || !liabilityForm.totalMonths || !liabilityForm.paymentDay || !liabilityForm.accountId) return;
     
     const newLiability = {
-      id: Date.now(),
+      id: uid(),
       name: liabilityForm.name,
       type: liabilityForm.type,
       amount: parseFloat(liabilityForm.amount),
@@ -7954,7 +7965,7 @@ function LiabilitiesTab({ data, update }) {
 
   function markPaymentMade(liability) {
     if (liability.paidMonths >= liability.totalMonths) return;
-    const txId = Date.now();
+    const txId = uid();
     const newTransaction = {
       id: txId,
       type: "expense",
@@ -7978,7 +7989,7 @@ function LiabilitiesTab({ data, update }) {
     if (liability.capitalPaid) return;
     const capitalAmt = parseFloat(liability.capitalAmount) || 0;
     if (!capitalAmt) return;
-    const txId = Date.now();
+    const txId = uid();
     const newTransaction = {
       id: txId,
       type: "expense",
@@ -8923,7 +8934,7 @@ function GoalsPage({ data, update }) {
       const maxNum = existing.reduce((m, x) => Math.max(m, x.goalNumber || 0), 0);
       return {
         needsWants: [...(p.needsWants || []), {
-          id: Date.now(),
+          id: uid(),
           kind,
           goalNumber: maxNum + 1,
           goalType: form.goalType || "money",
@@ -9097,7 +9108,7 @@ function GoalsPage({ data, update }) {
     update(p => ({
       goalAccounts: [
         ...(p.goalAccounts || []),
-        { id: Date.now(), name, balance, type: "Goal Account" }
+        { id: uid(), name, balance, type: "Goal Account" }
       ]
     }));
     
@@ -10046,7 +10057,7 @@ function BusinessPage({ data, update }) {
     const price = activeMonthEntry?.price || 0;
     const gross = qty * price;
     const net   = dayForm.netIncome !== "" ? parseFloat(dayForm.netIncome) : gross;
-    const dayId = "day_" + Date.now();
+    const dayId = "day_" + uid();
     updateBizData(d => d.map(e => {
       if (e.id !== selectedMonth) return e;
       const days = [...(e.days || []), { id: dayId, date: dayForm.date, quantity: qty, grossIncome: gross, netIncome: net, note: dayForm.note }];
@@ -10138,7 +10149,7 @@ function BusinessPage({ data, update }) {
 
   function addBusiness() {
     if (!newBizName.trim()) return;
-    const biz = { id: "biz_" + Date.now(), name: newBizName.trim(), data: [], bizType: bizTab, createdAt: new Date().toISOString() };
+    const biz = { id: "biz_" + uid(), name: newBizName.trim(), data: [], bizType: bizTab, createdAt: new Date().toISOString() };
     update(p => ({ businesses: [...(p.businesses || []), biz] }));
     setNewBizName(""); setShowAddBiz(false);
     setSelectedBiz(biz.id);
@@ -10154,7 +10165,7 @@ function BusinessPage({ data, update }) {
     const name = bizLiabForm.name.trim();
     const amount = parseFloat(bizLiabForm.amount);
     if (!name || isNaN(amount) || amount <= 0) return;
-    const newLiab = { id: "liab_" + Date.now(), name, amount, paid: false };
+    const newLiab = { id: "liab_" + uid(), name, amount, paid: false };
     update(p => ({ businesses: (p.businesses || []).map(b => b.id === bizId ? { ...b, liabilities: [...(b.liabilities || []), newLiab] } : b) }));
     setBizLiabForm({ name: "", amount: "" });
   }
@@ -10194,7 +10205,7 @@ function BusinessPage({ data, update }) {
         const dateStr = `${selectedYear}-${String(monthIdx + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
         return { id: `day_${dateStr}`, date: dateStr, quantity: null, qty1: null, qty2: null, grossIncome: 0, netIncome: 0, note: "" };
       });
-      updateBizData(d => [...d, { id: Date.now(), year: selectedYear, month: monthForm.month, monthIndex: monthIdx, grossIncome: 0, netIncome: 0, price, days }]);
+      updateBizData(d => [...d, { id: uid(), year: selectedYear, month: monthForm.month, monthIndex: monthIdx, grossIncome: 0, netIncome: 0, price, days }]);
     } else {
       const filledRows = monthForm.rows.filter(r => r.qty !== "" && r.price !== "");
       if (filledRows.length === 0) return;
@@ -10202,7 +10213,7 @@ function BusinessPage({ data, update }) {
       const qty   = filledRows.reduce((s, r) => s + (parseFloat(r.qty) || 0), 0) || null;
       const price = parseFloat(filledRows[0].price) || 0;
       const qtyBreakdown = filledRows.map(r => ({ qty: parseFloat(r.qty) || 0, price: parseFloat(r.price) || 0 }));
-      updateBizData(d => [...d, { id: Date.now(), year: selectedYear, month: monthForm.month, monthIndex: monthIdx, qty, price, qtyBreakdown, grossIncome: gross, netIncome: gross }]);
+      updateBizData(d => [...d, { id: uid(), year: selectedYear, month: monthForm.month, monthIndex: monthIdx, qty, price, qtyBreakdown, grossIncome: gross, netIncome: gross }]);
     }
     setMonthForm({ month: "", rows: [{ qty: "", price: "" }] }); setShowAddMonth(false);
   }
@@ -11811,7 +11822,7 @@ function BusinessPage({ data, update }) {
         }
 
         function addQtyCol() {
-          const newId = "qty_" + Date.now();
+          const newId = "qty_" + uid();
           const newLabel = "Qty " + (qtyCols.length + 1);
           const newCols = [...qtyCols, { id: newId, label: newLabel }];
           updateBizData(d => d.map(e => e.id !== selectedMonth ? e : { ...e, qtyCols: newCols }));
@@ -12044,7 +12055,7 @@ function DocsPage({ data, update }) {
   // ── folder CRUD ───────────────────────────────────────────────────────────
   function addFolder() {
     const name = newFolderName.trim(); if (!name) return;
-    const f = { id: "docf_" + Date.now(), name, subfolders: [], createdAt: new Date().toISOString() };
+    const f = { id: "docf_" + uid(), name, subfolders: [], createdAt: new Date().toISOString() };
     updateFolders(fs => [...fs, f]);
     setNewFolderName(""); setShowAddFolder(false);
     setSelectedFolder(f.id);
@@ -12063,7 +12074,7 @@ function DocsPage({ data, update }) {
   // ── subfolder CRUD ────────────────────────────────────────────────────────
   function addSub() {
     const name = newSubName.trim(); if (!name) return;
-    const s = { id: "docs_" + Date.now(), name, docs: [], createdAt: new Date().toISOString() };
+    const s = { id: "docs_" + uid(), name, docs: [], createdAt: new Date().toISOString() };
     updateSubfolders(ss => [...ss, s]);
     setNewSubName(""); setShowAddSub(false);
     setSelectedSub(s.id);
@@ -12432,7 +12443,7 @@ function ProjectsPage({ data, update }) {
 
   function addProject() {
     if (!newProjectName.trim()) return;
-    const id = Date.now();
+    const id = uid();
     update(p => ({ projectsData: [...(p.projectsData || []), { id, name: newProjectName.trim(), todos: [], files: [], createdAt: new Date().toISOString() }] }));
     setNewProjectName("");
     setShowAddProject(false);
@@ -12452,7 +12463,7 @@ function ProjectsPage({ data, update }) {
   function addTask() {
     if (!taskForm.name.trim() || !project) return;
     const todo = {
-      id: Date.now(),
+      id: uid(),
       text: taskForm.name.trim(),
       taskTypes: taskForm.types.length > 0 ? taskForm.types : [],
       taskType: taskForm.types.length === 1 ? taskForm.types[0] : (taskForm.types.length > 1 ? taskForm.types.join(", ") : ""),
@@ -12526,7 +12537,7 @@ function ProjectsPage({ data, update }) {
 
   function addDayEntry() {
     if (!newDayEntry.trim() || !project) return;
-    const entry = { id: Date.now(), text: newDayEntry.trim(), date: dayTrackDate, done: false, createdAt: new Date().toISOString() };
+    const entry = { id: uid(), text: newDayEntry.trim(), date: dayTrackDate, done: false, createdAt: new Date().toISOString() };
     update(p => ({ projectsData: (p.projectsData || []).map(pr => pr.id === project.id
       ? { ...pr, dayLog: [...(pr.dayLog || []), entry] }
       : pr
@@ -13041,7 +13052,7 @@ function ProjectsPage({ data, update }) {
               }
               function addNote() {
                 const note = {
-                  id: Date.now(),
+                  id: uid(),
                   title: "Untitled Note",
                   content: "",
                   noteView: "text", // "text" | "map"
@@ -13562,15 +13573,15 @@ function MergedNoteEditor({ note, updateNote, deleteNote, onEsc, NOTE_COLORS, ma
     const parent = nodes.find(n => n.id === parentId); if (!parent) return;
     const angles = edges.filter(e => e.from === parentId).map(e => { const c = nodes.find(n => n.id === e.to); return c ? Math.atan2(c.y - parent.y, c.x - parent.x) : null; }).filter(a => a !== null);
     const angle = angles.length ? Math.max(...angles) + 0.6 : 0;
-    const id = "n" + Date.now();
+    const id = "n" + uid();
     setCollapsed(s => { const ns = new Set(s); ns.delete(parentId); return ns; });
     setNodes(p => [...p, { id, label: "New node", x: parent.x + 180 * Math.cos(angle), y: parent.y + 180 * Math.sin(angle), color: NC[nodes.length % NC.length] }]);
-    setEdges(p => [...p, { id: "e" + Date.now(), from: parentId, to: id }]);
+    setEdges(p => [...p, { id: "e" + uid(), from: parentId, to: id }]);
     setTimeout(() => { setSelected(id); setEditingId(id); setEditLabel("New node"); }, 0);
   }
   function addRootNode() {
     snap();
-    const id = "root" + Date.now();
+    const id = "root" + uid();
     setNodes(p => [...p, { id, label: "Central Idea", x: 200 + Math.random() * 200 - pan.x, y: 150 + Math.random() * 100 - pan.y, isRoot: true, color: "#ede9fe" }]);
     setTimeout(() => { setSelected(id); setEditingId(id); setEditLabel("Central Idea"); }, 0);
   }
@@ -13597,7 +13608,7 @@ function MergedNoteEditor({ note, updateNote, deleteNote, onEsc, NOTE_COLORS, ma
   // Each textBlock: { id, x, y, text, fontSize, bold, color }
   function addTextBlock(x, y) {
     snap();
-    const id = "tb" + Date.now();
+    const id = "tb" + uid();
     setTextBlocks(p => [...p, { id, x, y, text: "Text", fontSize: 16, bold: false, color: "#1a1a2e" }]);
     setTimeout(() => { const el = document.getElementById("tb-" + id); if (el) { el.focus(); el.select(); } }, 50);
   }
@@ -14562,7 +14573,7 @@ function PFAccountPage({ data, update }) {
     if (!amt || amt <= 0 || !month) return;
     const employee = amt * 0.5;
     const employer = amt * 0.5;
-    const entry = { id: Date.now(), month, pfAmount: amt, employee, employer };
+    const entry = { id: uid(), month, pfAmount: amt, employee, employer };
     const updated = { ...pf, contributions: [...contributions, entry].sort((a, b) => a.month.localeCompare(b.month)) };
     update(d => ({ ...d, pfAccount: updated }));
     setPfAmount(""); setShowAddForm(false);
@@ -14587,7 +14598,7 @@ function PFAccountPage({ data, update }) {
     if (wdSource === "employee") { employeeAmt = amt; employerAmt = 0; }
     else if (wdSource === "employer") { employeeAmt = 0; employerAmt = amt; }
     else { employeeAmt = amt * 0.5; employerAmt = amt * 0.5; }
-    const entry = { id: Date.now(), date: wdDate, amount: amt, source: wdSource, employeeAmt, employerAmt };
+    const entry = { id: uid(), date: wdDate, amount: amt, source: wdSource, employeeAmt, employerAmt };
     const updated = { ...pf, withdrawals: [...withdrawals, entry].sort((a, b) => a.date.localeCompare(b.date)) };
     update(d => ({ ...d, pfAccount: updated }));
     setWdAmount(""); setWdSource("both"); setShowWithdraw(false);
@@ -15696,7 +15707,7 @@ function MutualFundsPage({ data, update }) {
 
   function addMF() {
     if (!form.name.trim() || !form.nav) return;
-    update(p => ({ mutualFunds: [...(p.mutualFunds || []), { id: Date.now(), ...form, units: parseFloat(form.units) || 0, nav: parseFloat(form.nav) || 0, investedAmount: parseFloat(form.investedAmount) || 0, startDate: form.startDate || "", addedAt: new Date().toISOString() }] }));
+    update(p => ({ mutualFunds: [...(p.mutualFunds || []), { id: uid(), ...form, units: parseFloat(form.units) || 0, nav: parseFloat(form.nav) || 0, investedAmount: parseFloat(form.investedAmount) || 0, startDate: form.startDate || "", addedAt: new Date().toISOString() }] }));
     setForm({ name: "", units: "", nav: "", investedAmount: "", startDate: "" }); setShowForm(false);
   }
   function deleteMF(id) { update(p => ({ mutualFunds: (p.mutualFunds || []).filter(m => m.id !== id) })); }
@@ -16158,7 +16169,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
     // If US stocks in USD mode, user entered price in $, store in ₹
     const rawPrice = Number(form.buyPrice);
     const storedPrice = (isUS && showUSD && usdRate > 0) ? Math.round(rawPrice * usdRate * 100) / 100 : rawPrice;
-    const newH = { id: editId || Date.now(), symbol: sym, name: resolvedName, buyPrice: storedPrice, qty: Number(form.qty), exchange: form.exchange, yahooOverride: override, buyDate: form.buyDate || "", addedAt: editId ? undefined : today() };
+    const newH = { id: editId || uid(), symbol: sym, name: resolvedName, buyPrice: storedPrice, qty: Number(form.qty), exchange: form.exchange, yahooOverride: override, buyDate: form.buyDate || "", addedAt: editId ? undefined : today() };
     if (editId) {
       // Check if we are editing a merged row (form may carry _ids from merged data)
       // In that case: update the primary entry and remove the duplicates
@@ -16220,7 +16231,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
     const sellPriceInr = (isUS && showUSD) ? sellPrice * usdRate : sellPrice;
     const realizedProfit = (sellPriceInr - buyPriceInr) * qty;
     const soldEntry = {
-      id: Date.now(),
+      id: uid(),
       symbol: h.symbol,
       name: h.name || h.symbol,
       exchange: h.exchange || "NSE",
