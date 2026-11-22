@@ -820,6 +820,8 @@ export default function App() {
       <style>{LIGHT_MODE_STYLE}</style>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet" />
 
+      <DialogHost />
+
       {saveError && (
         <div role="alert" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 9999, background: "#b91c1c", color: "#fff", padding: "8px 14px", fontSize: 13, textAlign: "center" }}>
           Your latest changes could not be saved. Retrying… keep this tab open.
@@ -1067,6 +1069,84 @@ export default function App() {
 }
 
 // ─── Splash / Loading screen ──────────────────────────────────────────────────
+// ── In-app dialogs (replace window.confirm / alert, which look bad on mobile/PWA) ──
+let _pushDialog = null;
+let _pushToast  = null;
+function askConfirm(message, { confirmLabel = "Confirm", danger = true } = {}) {
+  return new Promise(resolve => {
+    if (_pushDialog) _pushDialog({ kind: "confirm", message, confirmLabel, danger, resolve });
+    else resolve(window.confirm(message)); // host not mounted yet
+  });
+}
+function showAlert(message) {
+  return new Promise(resolve => {
+    if (_pushDialog) _pushDialog({ kind: "alert", message, resolve });
+    else { window.alert(message); resolve(); }
+  });
+}
+function showToast(message) {
+  if (_pushToast) _pushToast(message);
+}
+
+function DialogHost() {
+  const [queue, setQueue]   = useState([]);
+  const [toasts, setToasts] = useState([]);
+  useEffect(() => {
+    _pushDialog = (d) => setQueue(q => [...q, d]);
+    _pushToast  = (message) => {
+      const id = Date.now() + Math.random();
+      setToasts(t => [...t, { id, message }]);
+      setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
+    };
+    return () => { _pushDialog = null; _pushToast = null; };
+  }, []);
+
+  const current = queue[0];
+  const close = (result) => {
+    if (!current) return;
+    current.resolve(result);
+    setQueue(q => q.slice(1));
+  };
+  useEffect(() => {
+    if (!current) return;
+    const onKey = (e) => { if (e.key === "Escape") close(current.kind === "confirm" ? false : undefined); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const btn = { border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 14, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" };
+  return (
+    <>
+      {current && (
+        <div role="dialog" aria-modal="true"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) close(current.kind === "confirm" ? false : undefined); }}
+          style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "var(--color-background-primary, #fff)", color: "var(--color-text-primary, #111)", borderRadius: 14, padding: "20px 22px", width: "100%", maxWidth: 420, boxShadow: "0 12px 40px rgba(0,0,0,0.25)", fontFamily: "'DM Sans', sans-serif" }}>
+            <div style={{ fontSize: 14, lineHeight: 1.55, whiteSpace: "pre-wrap", wordBreak: "break-word", marginBottom: 18 }}>{current.message}</div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              {current.kind === "confirm" && (
+                <button autoFocus={current.danger} onClick={() => close(false)}
+                  style={{ ...btn, background: "var(--color-background-secondary, #f0f0f0)", color: "var(--color-text-primary, #111)" }}>Cancel</button>
+              )}
+              <button autoFocus={current.kind === "alert" || !current.danger} onClick={() => close(current.kind === "confirm" ? true : undefined)}
+                style={{ ...btn, background: current.kind === "confirm" && current.danger ? "#d44" : "#1a6b3c", color: "#fff" }}>
+                {current.kind === "confirm" ? current.confirmLabel : "OK"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {toasts.length > 0 && (
+        <div style={{ position: "fixed", bottom: 76, left: 0, right: 0, zIndex: 10001, display: "flex", flexDirection: "column", alignItems: "center", gap: 8, pointerEvents: "none" }}>
+          {toasts.map(t => (
+            <div key={t.id} role="status" style={{ background: "#111", color: "#fff", padding: "9px 16px", borderRadius: 10, fontSize: 13, boxShadow: "0 6px 20px rgba(0,0,0,0.25)", maxWidth: "90vw" }}>{t.message}</div>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
 function SplashScreen({ msg }) {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "#f5f5f5", fontFamily: "'DM Sans', sans-serif" }}>
@@ -1982,7 +2062,7 @@ function BudgetTab({ data, update, categories }) {
     if (editBudget.sortOrder) {
       const duplicate = budgets.find(b => b.id !== editBudget.id && b.month === selectedMonth && b.sortOrder === editBudget.sortOrder);
       if (duplicate) {
-        alert(`Sort order ${editBudget.sortOrder} is already used by "${duplicate.category}". Please choose a different number.`);
+        showAlert(`Sort order ${editBudget.sortOrder} is already used by "${duplicate.category}". Please choose a different number.`);
         return;
       }
     }
@@ -3122,8 +3202,8 @@ function TransactionsDashboardTab({ data, update, accounts, setEditTx }) {
           if (t === "Cash") return { background: "#f0fdf4", color: "#166534" };
           return { background: "#e8f5ee", color: "#1a6b3c" };
         }
-        function deleteTransfer(pairId) {
-          if (!window.confirm("Delete this transfer? Both entries will be removed.")) return;
+        async function deleteTransfer(pairId) {
+          if (!await askConfirm("Delete this transfer? Both entries will be removed.")) return;
           update(p => ({ transactions: p.transactions.filter(t => t.transferPairId !== pairId) }));
         }
         function saveInlineEdit(ef) {
@@ -6509,8 +6589,8 @@ function TransferTab({ data, update, accounts }) {
     setForm(p => ({ ...p, amount: "", note: "" }));
   }
 
-  function deleteTransfer(pairId) {
-    if (!window.confirm("Delete this transfer? Both debit and credit entries will be removed.")) return;
+  async function deleteTransfer(pairId) {
+    if (!await askConfirm("Delete this transfer? Both debit and credit entries will be removed.")) return;
     update(p => ({ transactions: p.transactions.filter(t => t.transferPairId !== pairId) }));
   }
 
@@ -7908,8 +7988,8 @@ function LiabilitiesTab({ data, update }) {
     }));
   }
 
-  function unmarkCapitalPaid(liability) {
-    if (!window.confirm("Undo capital paid? This will remove the capital payment transaction.")) return;
+  async function unmarkCapitalPaid(liability) {
+    if (!await askConfirm("Undo capital paid? This will remove the capital payment transaction.")) return;
     update(p => ({
       emis: p.emis.map(e => e.id === liability.id
         ? { ...e, capitalPaid: false, capitalPaidTxId: null }
@@ -8475,8 +8555,8 @@ function LiabilitiesTab({ data, update }) {
                     </div>
                     <ThreeDotMenu 
                       onEdit={() => setEditLiability({ ...liability })}
-                      onDelete={() => {
-                        if (confirm(`⚠️ DELETE "${liability.name}"?\n\nThis will permanently remove:\n✗ The liability entry\n✗ All ${relatedExpenses.length} related expense transactions\n\nThis action cannot be undone.`)) {
+                      onDelete={async () => {
+                        if (await askConfirm(`⚠️ DELETE "${liability.name}"?\n\nThis will permanently remove:\n✗ The liability entry\n✗ All ${relatedExpenses.length} related expense transactions\n\nThis action cannot be undone.`)) {
                           deleteLiability(liability.id);
                         }
                       }}
@@ -8652,8 +8732,8 @@ function LiabilitiesTab({ data, update }) {
                         {/* Undo last payment */}
                         {liability.paidMonths > 0 && (
                           <button
-                            onClick={() => {
-                              if (!confirm(`Undo last payment for "${liability.name}"?\n\nThis will reduce paid months from ${liability.paidMonths} to ${liability.paidMonths - 1} and remove the most recent logged payment.`)) return;
+                            onClick={async () => {
+                              if (!await askConfirm(`Undo last payment for "${liability.name}"?\n\nThis will reduce paid months from ${liability.paidMonths} to ${liability.paidMonths - 1} and remove the most recent logged payment.`)) return;
                               // Remove most recent related expense
                               const sorted = [...relatedExpenses].sort((a, b) => b.date?.localeCompare(a.date) || b.id - a.id);
                               const toRemove = sorted[0];
@@ -8679,8 +8759,8 @@ function LiabilitiesTab({ data, update }) {
                         )}
                         {/* Delete */}
                         <button
-                          onClick={() => {
-                            if (confirm(`⚠️ DELETE "${liability.name}"?\n\nThis will permanently remove:\n✗ The liability entry\n✗ All ${relatedExpenses.length} related expense transactions\n\nThis action cannot be undone.`)) {
+                          onClick={async () => {
+                            if (await askConfirm(`⚠️ DELETE "${liability.name}"?\n\nThis will permanently remove:\n✗ The liability entry\n✗ All ${relatedExpenses.length} related expense transactions\n\nThis action cannot be undone.`)) {
                               deleteLiability(liability.id);
                             }
                           }}
@@ -8971,8 +9051,8 @@ function GoalsPage({ data, update }) {
   }
 
   // ── Delete Transaction ──
-  function deleteTransaction(txId, goalId, txAmount) {
-    if (!confirm("Delete this savings entry? This will reduce your saved amount.")) return;
+  async function deleteTransaction(txId, goalId, txAmount) {
+    if (!await askConfirm("Delete this savings entry? This will reduce your saved amount.")) return;
     
     update(p => {
       // Remove the transaction
@@ -9030,8 +9110,8 @@ function GoalsPage({ data, update }) {
     setGoalAccForm({ name: "", balance: "" });
   }
 
-  function deleteGoalAccount(id) {
-    if (!confirm("Delete this goal account? This won't affect your goal progress.")) return;
+  async function deleteGoalAccount(id) {
+    if (!await askConfirm("Delete this goal account? This won't affect your goal progress.")) return;
     update(p => ({
       goalAccounts: (p.goalAccounts || []).filter(a => a.id !== id)
     }));
@@ -10040,8 +10120,8 @@ function BusinessPage({ data, update }) {
     }
   }, [selectedBiz]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function deleteYear(yr) {
-    if (!confirm(`Delete all data for ${yr}?`)) return;
+  async function deleteYear(yr) {
+    if (!await askConfirm(`Delete all data for ${yr}?`)) return;
     updateBizData(d => d.filter(e => e.year !== yr));
     if (selectedYear === yr) { setSelectedYear(null); setSelectedMonth(null); }
   }
@@ -10053,8 +10133,8 @@ function BusinessPage({ data, update }) {
     setNewBizName(""); setShowAddBiz(false);
     setSelectedBiz(biz.id);
   }
-  function deleteBusiness(id) {
-    if (!confirm("Delete this business and all its data?")) return;
+  async function deleteBusiness(id) {
+    if (!await askConfirm("Delete this business and all its data?")) return;
     update(p => ({ businesses: (p.businesses || []).filter(b => b.id !== id) }));
     if (selectedBiz === id) { setSelectedBiz(null); setSelectedYear(null); setSelectedMonth(null); }
   }
@@ -10131,7 +10211,7 @@ function BusinessPage({ data, update }) {
     try {
       const token = await getFreshDriveToken();
       if (!token) {
-        alert("Please sign in with Google to upload bills.");
+        showAlert("Please sign in with Google to upload bills.");
         setUploadingBill(false);
         return;
       }
@@ -10176,17 +10256,17 @@ function BusinessPage({ data, update }) {
         e.id === entryId ? { ...e, bills: [...(e.bills || []), newBill] } : e
       ));
 
-      alert("Bill uploaded successfully!");
+      showToast("Bill uploaded successfully!");
     } catch (error) {
       console.error("Upload error:", error);
-      alert("Failed to upload bill. Please try again.");
+      showAlert("Failed to upload bill. Please try again.");
     } finally {
       setUploadingBill(false);
     }
   }
 
   async function deleteBill(entryId, bill) {
-    if (!confirm(`Delete ${bill.name}?`)) return;
+    if (!await askConfirm(`Delete ${bill.name}?`)) return;
     setBillToDelete(bill.id);
     
     try {
@@ -10199,10 +10279,10 @@ function BusinessPage({ data, update }) {
         e.id === entryId ? { ...e, bills: (e.bills || []).filter(b => b.id !== bill.id) } : e
       ));
       
-      alert("Bill deleted successfully!");
+      showToast("Bill deleted successfully!");
     } catch (error) {
       console.error("Delete error:", error);
-      alert("Failed to delete bill from Google Drive, but removed from app.");
+      showAlert("Failed to delete bill from Google Drive, but removed from app.");
       // Still remove from app even if Drive delete fails
       updateBizData(d => d.map(e => 
         e.id === entryId ? { ...e, bills: (e.bills || []).filter(b => b.id !== bill.id) } : e
@@ -11959,8 +12039,8 @@ function DocsPage({ data, update }) {
     setNewFolderName(""); setShowAddFolder(false);
     setSelectedFolder(f.id);
   }
-  function deleteFolder(id) {
-    if (!confirm("Delete this folder and all its contents?")) return;
+  async function deleteFolder(id) {
+    if (!await askConfirm("Delete this folder and all its contents?")) return;
     updateFolders(fs => fs.filter(f => f.id !== id));
     if (selectedFolder === id) { setSelectedFolder(null); setSelectedSub(null); }
   }
@@ -11978,8 +12058,8 @@ function DocsPage({ data, update }) {
     setNewSubName(""); setShowAddSub(false);
     setSelectedSub(s.id);
   }
-  function deleteSub(id) {
-    if (!confirm("Delete this subfolder and all its documents?")) return;
+  async function deleteSub(id) {
+    if (!await askConfirm("Delete this subfolder and all its documents?")) return;
     updateSubfolders(ss => ss.filter(s => s.id !== id));
     if (selectedSub === id) setSelectedSub(null);
   }
@@ -11995,7 +12075,7 @@ function DocsPage({ data, update }) {
     setUploadingDoc(true);
     try {
       const token = await getFreshDriveToken();
-      if (!token) { alert("Please sign in with Google to upload documents."); return; }
+      if (!token) { showAlert("Please sign in with Google to upload documents."); return; }
       // Drive path: FinTracker/Docs/<Folder>/<Subfolder>/
       const finTrackerId  = await ensureDriveFolder(token, "FinTracker");
       const docsRootId    = await ensureDriveFolder(token, "Docs",           finTrackerId);
@@ -12008,17 +12088,17 @@ function DocsPage({ data, update }) {
       const driveFile     = await uploadFileToDrive(token, file, fileName, subDriveId);
       const newDoc = { id: driveFile.id, name: fileName, originalName: file.name, url: driveFile.webViewLink, downloadUrl: driveFile.webContentLink, size: driveFile.size, mimeType: driveFile.mimeType, uploadedAt: new Date().toISOString() };
       updateDocs(ds => [...ds, newDoc]);
-      alert("Document uploaded successfully!");
+      showToast("Document uploaded successfully!");
     } catch (err) {
       console.error("Doc upload error:", err);
-      alert("Failed to upload document. Please try again.");
+      showAlert("Failed to upload document. Please try again.");
     } finally {
       setUploadingDoc(false);
     }
   }
 
   async function deleteDoc(doc) {
-    if (!confirm(`Delete "${doc.name}"?`)) return;
+    if (!await askConfirm(`Delete "${doc.name}"?`)) return;
     setDeletingDoc(doc.id);
     try {
       const token = await getFreshDriveToken();
@@ -12349,8 +12429,8 @@ function ProjectsPage({ data, update }) {
     setSelectedProject(id);
   }
 
-  function deleteProject(id) {
-    if (!confirm("Delete this project and all its data?")) return;
+  async function deleteProject(id) {
+    if (!await askConfirm("Delete this project and all its data?")) return;
     update(p => ({ projectsData: (p.projectsData || []).filter(pr => pr.id !== id) }));
     if (selectedProject === id) setSelectedProject(null);
   }
@@ -14490,7 +14570,7 @@ function PFAccountPage({ data, update }) {
     const availableForSource = wdSource === "employee" ? netEmployee : wdSource === "employer" ? netEmployer : balance;
     if (amt > availableForSource) {
       const srcLabel = wdSource === "employee" ? "Employee" : wdSource === "employer" ? "Employer" : "Total";
-      alert(`Withdrawal amount exceeds available ${srcLabel} balance of ${fmtR(availableForSource)}!`);
+      showAlert(`Withdrawal amount exceeds available ${srcLabel} balance of ${fmtR(availableForSource)}!`);
       return;
     }
     let employeeAmt = 0, employerAmt = 0;
@@ -14821,7 +14901,7 @@ function DividendView({ data }) {
       const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(crumbUrl)}`;
       const crumbRes = await fetch(proxyUrl, { credentials: "include", signal: AbortSignal.timeout(5000) });
       if (crumbRes.ok) crumb = (await crumbRes.text()).trim();
-    } catch (_) {}
+    } catch (err) { console.warn("Dividend: crumb fetch failed:", err); }
 
     const BATCH = 3;
     const collected = {};
@@ -14864,7 +14944,7 @@ function DividendView({ data }) {
               payoutRatio: raw(sd.payoutRatio),
               fiveYearAvgYield: raw(sd.fiveYearAvgDividendYield),
             };
-          } catch (_) {}
+          } catch (err) { console.warn("Dividend: quoteSummary fetch failed:", err); }
         }
 
         // Fallback: v8 chart endpoint (has trailingAnnualDividendRate in meta)
@@ -14885,7 +14965,7 @@ function DividendView({ data }) {
             return { ok: true, ticker, isPaying: divRate > 0, dividendRate: divRate, dividendYield: divYield,
               trailingDivRate: divRate, trailingDivYield: divYield, exDividendDate: null, dividendDate: null,
               lastDividendValue: null, payoutRatio: null, fiveYearAvgYield: null };
-          } catch (_) {}
+          } catch (err) { console.warn("Dividend: chart fallback failed:", err); }
         }
 
         return { ok: false, ticker, isPaying: false };
@@ -15172,7 +15252,7 @@ function ComparativeAnalysisView({ data }) {
           if (entry?.ok) mapped[b.id] = entry;
         });
         setLiveIndexPrices(mapped);
-      } catch (_) {}
+      } catch (err) { console.warn("Live index prices fetch failed:", err); }
     }
     fetchLiveIndices();
     const iv = setInterval(fetchLiveIndices, 5 * 60 * 1000); // refresh every 5 min
@@ -15227,7 +15307,7 @@ function ComparativeAnalysisView({ data }) {
               if (prices.length > 0) results[b.id] = prices;
             }
           }
-        } catch (_) {}
+        } catch (err) { console.warn("Benchmark intraday fetch failed:", err); }
       }));
       setBenchData(results);
       setBenchUpdated(new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }));
@@ -16070,7 +16150,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
               if (val.ok) priceData[retryMap[altT]] = { ...val, _autoFixedTo: altT };
             });
           }
-        } catch (_) {}
+        } catch (err) { console.warn("Price retry (alt ticker) failed:", err); }
       }
 
       setPrices(priceData);
@@ -16655,7 +16735,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
                   )}
                   <button onClick={() => { const m = h._merged && h._ids?.length > 1 ? { ...h, id: h._ids[0] } : (holdings.find(hh => hh.id === (h._ids?.[0] ?? h.id)) || h); openEdit(m); }}
                     style={{ background: "none", border: "0.5px solid var(--color-border-secondary)", borderRadius: 6, cursor: "pointer", fontSize: 13, padding: "4px 8px", color: "var(--color-text-secondary)" }}>✏️</button>
-                  <button onClick={() => { if (window.confirm(`Delete ${h.symbol}?`)) { if (h._ids) update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => !h._ids.includes(x.id)) })); else update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => x.id !== h.id) })); } }}
+                  <button onClick={async () => { if (await askConfirm(`Delete ${h.symbol}?`)) { if (h._ids) update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => !h._ids.includes(x.id)) })); else update(p => ({ [holdingsKey]: (p[holdingsKey] || []).filter(x => x.id !== h.id) })); } }}
                     style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "#d44", padding: "2px 4px" }}>🗑</button>
                 </div>
               </div>
@@ -16767,9 +16847,9 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
                       openEdit(holdings.find(hh => hh.id === (h._ids?.[0] ?? h.id)) || h);
                     }
                   }}
-                  onDelete={() => {
+                  onDelete={async () => {
                     if (h._merged && h._ids?.length > 1) {
-                      if (window.confirm(`This will delete all ${h._ids.length} entries for ${h.symbol}. Continue?`)) {
+                      if (await askConfirm(`This will delete all ${h._ids.length} entries for ${h.symbol}. Continue?`)) {
                         h._ids.forEach(id => deleteHolding(id));
                       }
                     } else {
@@ -16860,8 +16940,8 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
                             </div>
                           </td>
                           <td style={{ padding: "9px 12px", textAlign: "right" }}>
-                            <button onClick={() => {
-                              if (window.confirm("Remove this realized entry?")) {
+                            <button onClick={async () => {
+                              if (await askConfirm("Remove this realized entry?")) {
                                 update(p => ({ [soldKey]: (p[soldKey] || []).filter(x => x.id !== e.id) }));
                               }
                             }} style={{ background: "none", border: "none", cursor: "pointer", color: "#d44", fontSize: 13, opacity: 0.5, padding: "2px 4px" }}
@@ -16937,7 +17017,7 @@ function PortfolioAnalysisView({ data }) {
         const d = await res.json();
         setFundMap(d);
       }
-    } catch (e) {}
+    } catch (err) { console.warn("Fundamentals fetch failed:", err); }
     setFundLoading(false);
     setFundLoaded(true);
   }
