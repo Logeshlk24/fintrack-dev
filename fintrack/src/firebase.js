@@ -39,6 +39,25 @@ export const db = getFirestore(app);
 const CLIENT_ID = "120401698302-your-actual-client-id.apps.googleusercontent.com";
 // ⚠️ IMPORTANT: Replace with your actual OAuth Client ID from Google Cloud Console
 
+// ── Drive access token: kept in memory only ───────────────────────────────────
+// It used to be saved in localStorage, where any injected script could read it.
+// It now lives only in this module's memory (gone on reload/close; renewed via
+// getFreshDriveToken / the "Sign in" banner). The Google access token is short
+// lived (~1 h) and was already treated as expired after 55 min.
+let driveToken = null;
+let driveTokenExp = 0;
+const setDriveToken = (tok, ms = 55 * 60 * 1000) => { driveToken = tok; driveTokenExp = Date.now() + ms; };
+const clearDriveToken = () => { driveToken = null; driveTokenExp = 0; };
+// Returns the in-memory token if it is still valid, else null (never prompts).
+export const getCachedDriveToken = () => (driveToken && Date.now() < driveTokenExp ? driveToken : null);
+
+// Wipe tokens that older versions saved to localStorage
+const LEGACY_DRIVE_KEYS = ["ft_drv_access_tok", "ft_drv_access_exp", "ft_drv_email"];
+const clearLegacyDriveStorage = () => {
+  try { LEGACY_DRIVE_KEYS.forEach(k => localStorage.removeItem(k)); } catch (_) {}
+};
+clearLegacyDriveStorage();
+
 const provider = new GoogleAuthProvider();
 provider.addScope("https://www.googleapis.com/auth/drive.file");
 provider.setCustomParameters({
@@ -54,15 +73,8 @@ export const signInWithGoogle = async () => {
     const accessToken = credential?.accessToken;
     
     if (accessToken) {
-      const expiry = Date.now() + 55 * 60 * 1000; // 55 minutes
-      localStorage.setItem("ft_drv_access_tok", accessToken);
-      localStorage.setItem("ft_drv_access_exp", String(expiry));
-      localStorage.setItem("ft_drv_email", result.user.email || "");
-      
-      // Try to get refresh token from the authentication flow
-      // Note: Firebase doesn't expose refresh token directly from popup
-      // We'll use Firebase's built-in token refresh instead
-      console.log("✅ Drive access granted! Tokens saved.");
+      setDriveToken(accessToken); // memory only — see note above
+      console.log("✅ Drive access granted!");
     }
     
     return result;
@@ -80,8 +92,8 @@ export async function getFreshDriveToken() {
     return null;
   }
 
-  const savedAccessToken = localStorage.getItem("ft_drv_access_tok");
-  const accessExpiry = parseInt(localStorage.getItem("ft_drv_access_exp") || "0");
+  const savedAccessToken = driveToken;
+  const accessExpiry = driveTokenExp;
 
   // ── Step 1: Return cached access token if still fresh ───────────────────────
   if (savedAccessToken && Date.now() < accessExpiry - 5 * 60 * 1000) {
@@ -110,9 +122,7 @@ export async function getFreshDriveToken() {
       const newAccessToken = credential?.accessToken;
 
       if (newAccessToken) {
-        const newExpiry = Date.now() + 55 * 60 * 1000;
-        localStorage.setItem("ft_drv_access_tok", newAccessToken);
-        localStorage.setItem("ft_drv_access_exp", String(newExpiry));
+        setDriveToken(newAccessToken);
         console.log("✅ Fresh access token obtained silently!");
         return newAccessToken;
       }
@@ -130,8 +140,7 @@ export async function getFreshDriveToken() {
           
           if (testRes.ok) {
             // Old token works! Extend its expiry
-            const newExpiry = Date.now() + 30 * 60 * 1000; // 30 more minutes
-            localStorage.setItem("ft_drv_access_exp", String(newExpiry));
+            setDriveToken(savedAccessToken, 30 * 60 * 1000); // 30 more minutes
             console.log("✅ Old access token still valid - extended expiry");
             return savedAccessToken;
           }
@@ -176,10 +185,7 @@ export async function reauthenticateDrive() {
     const accessToken = credential?.accessToken;
 
     if (accessToken) {
-      const expiry = Date.now() + 55 * 60 * 1000;
-      localStorage.setItem("ft_drv_access_tok", accessToken);
-      localStorage.setItem("ft_drv_access_exp", String(expiry));
-      localStorage.setItem("ft_drv_email", user.email || "");
+      setDriveToken(accessToken);
       console.log("✅ Drive re-authorized successfully!");
       return { success: true, token: accessToken };
     }
@@ -193,9 +199,8 @@ export async function reauthenticateDrive() {
 
 // ── Sign Out ──────────────────────────────────────────────────────────────────
 export const signOutUser = () => {
-  ["ft_drv_access_tok", "ft_drv_access_exp", "ft_drv_email"].forEach(k =>
-    localStorage.removeItem(k)
-  );
+  clearDriveToken();
+  clearLegacyDriveStorage();
   return signOut(auth);
 };
 

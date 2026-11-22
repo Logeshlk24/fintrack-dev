@@ -7,6 +7,7 @@ import {
   loadFromFirestore,
   saveToFirestore,
   getFreshDriveToken,
+  getCachedDriveToken,
 } from "./firebase";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -4835,9 +4836,8 @@ function IntegrationsSettings({ data, update, cardStyle, sectionTitle, firebaseU
     const SIX_HOURS = 6 * 60 * 60 * 1000;
 
     async function runAutoBackup() {
-      const token = localStorage.getItem("ft_drv_access_tok");
-      const expiry = parseInt(localStorage.getItem("ft_drv_access_exp") || "0");
-      if (!token || Date.now() > expiry) return; // token gone — skip silently
+      const token = getCachedDriveToken(); // in-memory token (null if expired/absent)
+      if (!token) return; // token gone — skip silently
 
       try {
         // Need fresh gdrive values — read from localStorage snapshot via closure
