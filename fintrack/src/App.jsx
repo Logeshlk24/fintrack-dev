@@ -172,6 +172,13 @@ const ASSET_TYPES = ["Stocks & Equity", "Equity Funds", "Gold & Silver", "FD & R
 const STRATEGIES = ["Call", "Put"];
 const INSTRUMENTS = ["Index Options", "Stock Options", "Commodities"];
 
+// Local calendar date as YYYY-MM-DD. (new Date().toISOString() is the UTC date, which is
+// still "yesterday" in India between 12:00 am and 5:30 am.)
+function localDateStr(d = new Date()) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 // Text blocks are saved as plain text (innerText), so they must be rendered as plain
 // text too. Escaping keeps typed/restored "<...>" from ever being parsed as HTML.
 const escapeHtml = (v) => String(v ?? "")
@@ -5667,7 +5674,7 @@ function BackupSettings({ data, update, cardStyle, sectionTitle, firebaseUser })
     };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url  = URL.createObjectURL(blob);
-    const ts   = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const ts   = localDateStr(); // YYYY-MM-DD
     const a    = document.createElement("a");
     a.href     = url;
     a.download = `fintrack_backup_${ts}.json`;
@@ -6230,7 +6237,7 @@ function AccountSettings({ data, update, cardStyle, sectionTitle }) {
     if (diff === 0) { setAdjusting(null); setAdjustAmt(""); setAdjustNote(""); return; }
     const isAdd = adjusting.type === "Credit Card" ? diff < 0 : diff > 0;
     const amt = Math.abs(diff);
-    update(p => ({ transactions: [...p.transactions, { id: Date.now(), type: isAdd ? "income" : "expense", amount: amt, category: adjustNote || (isAdd ? "Balance Top-up" : "Balance Adjustment"), note: `${adjusting.name} manual adjustment`, date: new Date().toISOString().split("T")[0], bankId: adjusting.id }] }));
+    update(p => ({ transactions: [...p.transactions, { id: Date.now(), type: isAdd ? "income" : "expense", amount: amt, category: adjustNote || (isAdd ? "Balance Top-up" : "Balance Adjustment"), note: `${adjusting.name} manual adjustment`, date: localDateStr(), bankId: adjusting.id }] }));
     setAdjusting(null); setAdjustAmt(""); setAdjustNote("");
   }
 
@@ -7256,7 +7263,7 @@ function AnalysisTab({ data, update, accounts }) {
 function ScheduledPaymentsTab({ data, update, accounts, processScheduledPayments, dataRef }) {
   const payments = data.scheduledPayments || [];
   const categories = data.categories || { expense: ["Food","Rent","Travel","Shopping","Health","Bills","EMI","Other"], income: ["Salary","Freelance","Investment","Business","Gift","Other"] };
-  const [form, setForm] = useState({ name: "", flowType: "expense", type: "EMI", amount: "", day: "", startDate: new Date().toISOString().slice(0, 10), freq: "monthly", customEveryN: "1", customUnit: "months", customWeekDays: [], autoTime: "", tenure: "", notes: "", accountId: "" });
+  const [form, setForm] = useState({ name: "", flowType: "expense", type: "EMI", amount: "", day: "", startDate: localDateStr(), freq: "monthly", customEveryN: "1", customUnit: "months", customWeekDays: [], autoTime: "", tenure: "", notes: "", accountId: "" });
   const [view, setView] = useState("list");
   const [editingPayment, setEditingPayment] = useState(null); // holds the payment being edited
   const [editForm, setEditForm] = useState(null);
@@ -9997,7 +10004,7 @@ function BusinessPage({ data, update }) {
   const [renamingDayMonth, setRenamingDayMonth] = useState(false); // day-wise month rename
   const [renamingDayMonthVal, setRenamingDayMonthVal] = useState("");
   const [showAddDay,   setShowAddDay]   = useState(false);
-  const [dayForm,      setDayForm]      = useState({ date: new Date().toISOString().split("T")[0], quantity: "", netIncome: "", note: "" });
+  const [dayForm,      setDayForm]      = useState({ date: localDateStr(), quantity: "", netIncome: "", note: "" });
   const [showLiabilitiesSection, setShowLiabilitiesSection] = useState(false);
   const [bizLiabForm, setBizLiabForm] = useState({ name: "", amount: "" });
   
@@ -10042,7 +10049,7 @@ function BusinessPage({ data, update }) {
       const days = [...(e.days || []), { id: dayId, date: dayForm.date, quantity: qty, grossIncome: gross, netIncome: net, note: dayForm.note }];
       return { ...e, days, grossIncome: days.reduce((s,d)=>s+d.grossIncome,0), netIncome: days.reduce((s,d)=>s+d.netIncome,0) };
     }));
-    setDayForm({ date: new Date().toISOString().split("T")[0], quantity: "", netIncome: "", note: "" });
+    setDayForm({ date: localDateStr(), quantity: "", netIncome: "", note: "" });
     setShowAddDay(false);
   }
 
@@ -12401,7 +12408,7 @@ function ProjectsPage({ data, update }) {
 
   // Day tracking state
   const [newDayEntry, setNewDayEntry] = useState("");
-  const [dayTrackDate, setDayTrackDate] = useState(new Date().toISOString().split("T")[0]);
+  const [dayTrackDate, setDayTrackDate] = useState(localDateStr());
   const [expandedDay, setExpandedDay] = useState(null);
 
   // Get the full selected project object (always fresh from data)
@@ -13149,7 +13156,7 @@ function ProjectsPage({ data, update }) {
 
             {/* ── WORK LOG card ── */}
             {(() => {
-              const todayStr = new Date().toISOString().split("T")[0];
+              const todayStr = localDateStr();
               const grouped = {};
               dayLog.forEach(e => {
                 const d = e.date || todayStr;
@@ -13982,7 +13989,7 @@ function ThreeDotMenu({ onEdit, onDelete }) {
 }
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
-function today() { return new Date().toISOString().split("T")[0]; }
+function today() { return localDateStr(); }
 
 function isThisMonth(dateStr) {
   if (!dateStr) return false;
@@ -14523,14 +14530,14 @@ function PFAccountPage({ data, update }) {
   // ── Add Contribution state ──
   const [showAddForm,  setShowAddForm]  = useState(false);
   const [month,        setMonth]        = useState(() => {
-    const d = new Date(); return d.toISOString().slice(0, 7);
+    return localDateStr().slice(0, 7);
   });
   const [pfAmount,     setPfAmount]     = useState("");
 
   // ── Withdraw state ──
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [wdAmount,     setWdAmount]     = useState("");
-  const [wdDate,       setWdDate]       = useState(() => new Date().toISOString().slice(0, 10));
+  const [wdDate,       setWdDate]       = useState(() => localDateStr());
   const [wdSource,     setWdSource]     = useState("both"); // "employee" | "employer" | "both"
 
   // ── Totals ──
@@ -16550,7 +16557,7 @@ function PortfolioPage({ data, update, title = "Indian Stocks", holdingsKey = "p
               <label style={{ display: "block", fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 3 }}>Buy Date <span style={{ fontWeight: 400, color: "#94a3b8" }}>(optional)</span></label>
               <input type="date" value={form.buyDate}
                 onChange={e => setForm(f => ({ ...f, buyDate: e.target.value }))}
-                max={new Date().toISOString().split("T")[0]}
+                max={localDateStr()}
                 style={{ width: "100%", boxSizing: "border-box" }} />
             </div>
           </div>
